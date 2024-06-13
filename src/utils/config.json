@@ -1,0 +1,8 @@
+{
+    "coords": [35.22, -90.07, 35.06, -89.73, 400],
+    "fov": 78.8,
+    "aspect_ratio": [4, 3],
+    "log_name": "current_date_and_time",
+    "batch_size": 16,
+    "seed": 1357
+}
