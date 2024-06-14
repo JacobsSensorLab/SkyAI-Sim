@@ -35,7 +35,7 @@ class ImageData(ABC):
         preprocess_image(self, filename): Abstract method to preprocess the image.
         preprocess_label(self, label): Abstract method to preprocess the labels.
         preprocess(self, img, label): Combines preprocessing of the image and its label.
-        imread(self, img_path, shape=consts.IMG_SIZE[:2]): Abstract method to read the image.
+        imread(self, img_path, shape=self.args.img_size[:2]): Abstract method to read the image.
     """
     def __init__(self, **kwargs):
         """
@@ -114,7 +114,7 @@ class ImageData(ABC):
         return self.preprocess_image(img), self.preprocess_label(label)
 
     @abstractmethod
-    def imread(self, img_path, shape=consts.IMG_SIZE[:2]):
+    def imread(self, img_path, shape=None):
         """
         Abstract method to read the image
         """

@@ -14,12 +14,13 @@ from natsort import natsorted
 import skimage.measure
 import tensorflow as tf
 
-from src.utils import consts, data_helper, geo_helper, preprocess
+from src.utils import data_helper, geo_helper, preprocess
 from src.utils.beauty import pretty
+from src.data.vbn import VBN
 from src.data.imagedata import ImageData
 
 
-class GoogleMap(ImageData):
+class GoogleMap(VBN, ImageData):
     """
         Load Googlemap API data
     """
@@ -45,10 +46,10 @@ class GoogleMap(ImageData):
                     - Sets the input directory by finding all .jpg files in the data directory.
                     - Checks if the input directory exists.
         """
-        ImageData.__init__(self, **kwargs)
+        VBN.__init__(self, **kwargs)
         self.data_info = {'x': 'images'}
 
-        self.input_dim = consts.IMG_SIZE
+        self.input_dim = kwargs['args'].img_size
 
         self.map_type  = kwargs['map_type'] if 'map_type' in kwargs\
             else 'satellite'
@@ -201,7 +202,9 @@ class GoogleMap(ImageData):
 
         print(n_img_w, n_img_h)
         pretty("[INFO]"
-            , "\n\tCenter (Latitude, Longitude):", center_lat, center_lon
+            , "\n\Theoretical # Images:", n_img_w, '*' , n_img_h,
+            '=', n_img_w * n_img_h,
+            "\n\tCenter (Latitude, Longitude):", center_lat, center_lon
             , "\n\tTop Left (Latitude, Longitude):", top_left
             , "\n\tBottom Right (Latitude, Longitude):", buttom_right
             , "\n\tMap Size:", map_size, '(pixels)',
@@ -220,14 +223,20 @@ class GoogleMap(ImageData):
         if map_name not in os.listdir(self.data_dir):
             geo_helper.get_static_map_image(
                 self.data_dir / map_name,
-                center_lat,
-                center_lon,
+                [center_lat, center_lon],
                 map_type=self.map_type,
                 zoom=map_zoom,
                 size=map_size
                 )
         else:
             print('Map image is available in', self.data_dir, 'as', map_name)
+
+        response = input("Do you want to proceed? (y/yes): ").strip().lower()
+        if response in ["y", "yes"]:
+            print("Confirmed.")
+        else:
+            print("Not Proceeding. Quitting the program.")
+            quit()
 
     def gen_raster_from_map(self,
                         top_left_coords: tuple,
@@ -336,7 +345,7 @@ class GoogleMap(ImageData):
                     output_dir = self.data_dir / 'images' / out_name
                     geo_helper.get_static_map_image(
                         output_dir,
-                        lat_i, lon_j,
+                        [lat_i, lon_j],
                         map_type=self.map_type,
                         zoom=raster_zoom,
                         size=im_size

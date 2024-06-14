@@ -11,7 +11,7 @@ import numpy as np
 import tensorflow as tf
 import requests
 
-from src.utils import norm_helper, consts
+from src.utils import consts
 
 
 def get_static_map_image(
@@ -71,8 +71,15 @@ def get_static_map_image(
             "URL:", final_url[:-1]
             )
 
+# center of mercator projection tile in pixels
 _C = {'x': 128, 'y': 128}
+
+# number of pixels per degree of longitude at zoom 0
 _J = 256 / 360
+
+# The ercator projection stretches the earth's surface into a flat map.
+# This projection results in a vertical (y-axis) scaling factor
+
 _L = 256 / (2 * math.pi)
 def calculate_bounding_box(
     center: Tuple[float, float], zoom: int,
@@ -99,6 +106,8 @@ def calculate_bounding_box(
             The coordinates belong to top left and bottom right.
 
     Converted from JS to python using chatGPT
+    Reference:
+        https://stackoverflow.com/questions/44784839/calculate-bounding-box-of-static-google-maps-image
     """
 
     def clamp(value: float, min_value: float, max_value: float) -> float:
@@ -109,21 +118,24 @@ def calculate_bounding_box(
         lat = math.degrees(math.asin(math.tanh((pt['y'] - _C['y']) / -_L)))
         return lat, lon
 
+    # the width and height of the map in pixels, adjusted by the pixel_size
+    # converted to mercator projection pixel values based on zoom
     pixel_size = pow(2, -(zoom + 1))
-    pw_x = map_size[0] * pixel_size
-    pw_y = map_size[1] * pixel_size
+    half_pw_x = map_size[0] * pixel_size
+    half_pw_y = map_size[1] * pixel_size
 
     a = clamp(
         math.sin(math.radians(center[0])),
         -(1 - 1E-15), 1 - 1E-15)
 
+    # adjusted center point pixel coordinates
     cp = {
         'x': _C['x'] + center[1] * _J,
         'y': _C['y'] + 0.5 * math.log((1 + a) / (1 - a)) * -_L
     }
 
-    top_left = pt_to_lat_lon({'x': cp['x'] - pw_x, 'y': cp['y'] - pw_y})
-    bottom_right = pt_to_lat_lon({'x': cp['x'] + pw_x, 'y': cp['y'] + pw_y})
+    top_left = pt_to_lat_lon({'x': cp['x'] - half_pw_x, 'y': cp['y'] - half_pw_y})
+    bottom_right = pt_to_lat_lon({'x': cp['x'] + half_pw_x, 'y': cp['y'] + half_pw_y})
 
     return top_left, bottom_right
 
@@ -134,6 +146,8 @@ def reverse_bounding_box(
     ) -> Tuple[int, List[int]]:
     """
     Reverse the bounding box coordinates from lat/lon to zoom level and image size.
+    If you know the top left and bottom right lat/lon,
+    what would be the best zoom level that can fit the biggest possible image size (640) in it.
     Parameters:
         - top_left (tuple):
             Latitude and longitude of the top left corner of the bounding box.
@@ -143,7 +157,7 @@ def reverse_bounding_box(
         - zoom (int): Zoom level of the bounding box.
         - img_size (list): Image size of the bounding box in the format [width, height].
     Processing Logic:
-        - Convert lat/lon coordinates to points.
+        - Convert lat/lon coordinates to pixel points.
         - Calculate the pixel width and height of the bounding box.
         - Determine the zoom level based on the pixel width and height.
         - Calculate the final image size based on the zoom level.
@@ -171,9 +185,13 @@ def reverse_bounding_box(
     half_pw_y = (cp_bottom_right['y'] - cp_top_left['y']) / 2
 
     # Initialize image size
+    # This is the maximum pixel size available on Google Map
+    # We get the high resolution first, then resize to the desired dimensions if needed
     img_size = 640
 
     # Determine width of the image based on the pixel dimensions
+    # The bigger width along x or y will be the img_size
+    # The other width is adjusted based on aspect ratio
     img_w = img_size if half_pw_x > half_pw_y else int(img_size * half_pw_y / half_pw_x)
 
     # Determine zoom level

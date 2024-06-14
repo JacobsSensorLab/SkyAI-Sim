@@ -10,9 +10,9 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler as Scaler
+from tensorflow.keras import layers
+from tensorflow.keras.models import Sequential
 import tensorflow as tf
-from tf.keras import layers
-from tf.keras.models import Sequential
 
 from src.utils import consts, data_helper, geo_helper, img_helper
 from src.utils.beauty import pretty
@@ -63,7 +63,7 @@ class VBN(ImageData):
             else "/home/sdjkhosh/Datasets/VisnavPNGFiles/jpg Simulated Files/Raster"
         self.data_dir = Path(data_dir)
 
-        self.input_dim = consts.IMG_SIZE
+        self.input_dim = self.args.img_size
         self.output_dim = 3
 
         self.input_dir = data_helper.find_files(self.data_dir /

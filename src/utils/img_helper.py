@@ -10,7 +10,7 @@ import tensorflow as tf
 from PIL import Image
 from tqdm import tqdm
 
-from src.utils import consts, norm_helper, geo_helper
+from src.utils import consts, geo_helper
 
 
 def choose_random_images(
@@ -181,6 +181,7 @@ def make_pairs(
     cols = data1.data_info['ytrain'].columns
     pair_images = []
     pair_labels = []
+
     # loop over all images
     with tqdm(position=0, leave=True, total=len(images)) as pbar:
         for idx_a, cur_img in enumerate(images):
@@ -193,7 +194,7 @@ def make_pairs(
             coords = geo_helper.calculate_bounding_box(
                 label[0: 2],
                 label[2],
-                data1.dim['input']
+                data1.input_dim
             )
 
             # Find a random sample coordinates
@@ -297,7 +298,7 @@ def find_random_sample(
     coords = geo_helper.calculate_bounding_box(
         label[:2],
         label[2],
-        data.dim['input']
+        data.input_dim
     )
     return idx, label, coords
 
@@ -353,7 +354,7 @@ def make_triplets(data1, data2, mode):
             pos_imgs.append(pos_img)
             coords = geo_helper.calculate_bounding_box(label[0: 2],
                                                         label[2],
-                                                        data1.dim['input'])
+                                                        data1.input_dim)
             idx_b, _, coords_b = find_random_sample(
                             range(len(labels)),
                             labels, data2

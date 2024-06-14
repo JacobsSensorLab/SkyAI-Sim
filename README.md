@@ -5,7 +5,7 @@ Capturing real-world aerial images is challenging due to limited availability an
 
 ## Google Colab Repository for local edits:
 
-https://colab.research.google.com/drive/1ag2cpezErNwNLuKJRzWnahZNW09YZuWH?usp=sharing
+https://colab.research.google.com/drive/1Huaq96ssyPMy7Xx1IVcUQaoPZu0Idfhk?usp=sharing
 
 <details>
   <summary>How to run colab on local server machine:</summary>
@@ -46,9 +46,9 @@ http://127.0.0.1:18888/?token=0f96a96950ca8aa79c52fb1fa5758e648b5052cd91417dd8
 
 ## Initiate and activate the environment:
 
-        conda create -n "skyai-sim" python=3.8.5
-        conda activate skyai-sim
-        cd /path/to/skyai-sim
+    conda create -n "skyai-sim" python=3.8.5
+    conda activate skyai-sim
+    cd /path/to/skyai-sim
 
     pip install -r requirements.txt
 
