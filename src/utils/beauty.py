@@ -1,7 +1,8 @@
 """
     Decorating functions are placed here
+    © All rights reserved.
     author: spdkh
-    date: Nov 2023
+    date: Nov 2023, JacobsSensorLab
 """
 import os
 
@@ -13,7 +14,7 @@ def pretty(*objects, sep=' ', end='\n', info=None, color="\033[93m"):
         terminal_size = os.get_terminal_size().columns
     except Exception:
         terminal_size = 75
-    
+
     block_len = min(terminal_size,
                     20 + max([len(i) for i in str(objects).split('\\n')]))
 

@@ -1,5 +1,8 @@
 """
+    Image Preprocessing Algorithms
+    © All rights reserved.
     author: spdkh
+    date: 2023, JacobsSensorLab
 """
 import numpy as np
 import matplotlib.pyplot as plt

@@ -1,7 +1,8 @@
 """
-    author: Parisa Daj
-    date: May 10, 2022
     parsing and configuration
+    © All rights reserved.
+    author: spdkh
+    date: May 10, 2022
 """
 import os
 import argparse

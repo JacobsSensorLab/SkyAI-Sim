@@ -1,7 +1,8 @@
 """
     Load VBN data generated in simulation
+    © All rights reserved.
     author: spdkh
-    date: June 2023
+    date: June 2023, JacobsSensorLab
 """
 import os
 import glob
@@ -46,6 +47,7 @@ class GoogleMap(VBN, ImageData):
                     - Sets the input directory by finding all .jpg files in the data directory.
                     - Checks if the input directory exists.
         """
+        ImageData.__init__(self, **kwargs)
         VBN.__init__(self, **kwargs)
         self.data_info = {'x': 'images'}
 

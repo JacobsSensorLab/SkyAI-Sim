@@ -1,5 +1,8 @@
 """
-    Path helper functions
+    Path and Data Management helper functions
+    © All rights reserved.
+    author: spdkh
+    date: 2023, JacobsSensorLab
 """
 import os
 import glob

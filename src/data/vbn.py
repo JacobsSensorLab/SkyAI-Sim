@@ -1,7 +1,8 @@
 """
     Vision Based Navigation Data
+    © All rights reserved.
     author: spdkh
-    date: June 2023
+    date: June 2023, JacobsSensorLab
 """
 
 from pathlib import Path

@@ -61,3 +61,7 @@ for more configuration parameters checkout src/utils/config.py or type:
 
     python -m src.main --help
 
+
+## License
+
+This project is licensed under the Apache License - see the [LICENSE](LICENSE) file for details.

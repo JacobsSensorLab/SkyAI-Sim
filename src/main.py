@@ -1,12 +1,14 @@
 """
-    author: SPDKH
-    date: Nov 2, 2023
+    Main Script to Run the program,
+    load and configure the Google Map dataset
+    © All rights reserved.
+    author: spdkh
+    date: June 2024, JacobsSensorLab
 """
 from src.utils import consts
 from src.data.googlemap import GoogleMap
 
 
-#Loading...
 def main():
     """Function:
         Generates a GoogleMap object with specified parameters.

@@ -1,6 +1,7 @@
 """
-    Author: SPDKH
-    Date: Spring 2024
+    © All rights reserved.
+    author: spdkh
+    date: sprint 2024, JacobsSensorLab
 """
 from pathlib import Path
 from src.utils.config import parse_args

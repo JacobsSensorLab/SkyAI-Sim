@@ -1,7 +1,8 @@
 """
     Geolocation helper functions
+    © All rights reserved.
     author: spdkh
-    date: Aug 2023
+    date: Aug 2023, JacobsSensorLab
 """
 from typing import Tuple, List
 import math
@@ -111,9 +112,16 @@ def calculate_bounding_box(
     """
 
     def clamp(value: float, min_value: float, max_value: float) -> float:
+        """
+        Ensures that a given value is within the specified range
+        [min_value, max_value]
+        """
         return max(min(value, max_value), min_value)
 
     def pt_to_lat_lon(pt: dict[str, float]) -> Tuple[float, float]:
+        """
+        Converts a point from pixel coordinates to latitude and longitude coordinates.
+        """
         lon = (pt['x'] - _C['x']) / _J
         lat = math.degrees(math.asin(math.tanh((pt['y'] - _C['y']) / -_L)))
         return lat, lon

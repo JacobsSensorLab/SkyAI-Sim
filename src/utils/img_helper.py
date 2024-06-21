@@ -1,7 +1,8 @@
 """
-    author: SPDKH
-    year: 2023
-    caGAN project image edit helper functions
+    Image Processing helper functions
+    © All rights reserved.
+    author: spdkh
+    date: 2023, JacobsSensorLab
 """
 from typing import List, Tuple, Dict
 import matplotlib.pyplot as plt

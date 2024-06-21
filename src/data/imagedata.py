@@ -1,7 +1,8 @@
 """
-    author: SPDKH
-    date: Nov 2023
     Input Image Data Manager
+    © All rights reserved.
+    author: spdkh
+    date: Nov 2023, JacobsSensorLab
 """
 
 from abc import ABC, abstractmethod
