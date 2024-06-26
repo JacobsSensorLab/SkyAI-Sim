@@ -50,7 +50,8 @@ class ImageData(ABC):
             - Sets data_dir and input_dir to None.
             - Initializes meta_df, labels, and dataset.
         """
-        super().__init__(**kwargs)
+        super().__init__()
+        self.args = kwargs['args']
         self.modes = ['train', 'val', 'test']
         self.data_info = {'x': None, 'y': None}
         self.input_dim = None

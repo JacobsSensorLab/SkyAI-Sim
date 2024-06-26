@@ -46,9 +46,18 @@ http://127.0.0.1:18888/?token=0f96a96950ca8aa79c52fb1fa5758e648b5052cd91417dd8
 
 ## Initiate and activate the environment:
 
-    conda create -n "skyai-sim" python=3.8.5
+    conda create -n "skyai-sim" python=3.11
     conda activate skyai-sim
     cd /path/to/skyai-sim
+
+### to enable GPU access (update with your desired version)
+
+check compatibility here: https://www.tensorflow.org/install/source#gpu
+
+    conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1 # Not necessary for this project
+    pip install tensorflow==2.11
+
+### Install other dependencies:
 
     pip install -r requirements.txt
 

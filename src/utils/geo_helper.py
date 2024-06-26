@@ -72,16 +72,7 @@ def get_static_map_image(
             "URL:", final_url[:-1]
             )
 
-# center of mercator projection tile in pixels
-_C = {'x': 128, 'y': 128}
 
-# number of pixels per degree of longitude at zoom 0
-_J = 256 / 360
-
-# The ercator projection stretches the earth's surface into a flat map.
-# This projection results in a vertical (y-axis) scaling factor
-
-_L = 256 / (2 * math.pi)
 def calculate_bounding_box(
     center: Tuple[float, float], zoom: int,
     map_size: Tuple[int, int]
@@ -122,15 +113,15 @@ def calculate_bounding_box(
         """
         Converts a point from pixel coordinates to latitude and longitude coordinates.
         """
-        lon = (pt['x'] - _C['x']) / _J
-        lat = math.degrees(math.asin(math.tanh((pt['y'] - _C['y']) / -_L)))
+        lon = (pt['x'] - consts.tile_center_p['x']) / consts.pixel_per_degree
+        lat = math.degrees(math.asin(math.tanh((pt['y'] - consts.tile_center_p['y']) / -consts.pixel_per_radian)))
         return lat, lon
 
     # the width and height of the map in pixels, adjusted by the pixel_size
     # converted to mercator projection pixel values based on zoom
-    pixel_size = pow(2, -(zoom + 1))
-    half_pw_x = map_size[0] * pixel_size
-    half_pw_y = map_size[1] * pixel_size
+    pixel_size = pow(2, -zoom)
+    half_pw_x = map_size[0] * pixel_size / 2
+    half_pw_y = map_size[1] * pixel_size / 2
 
     a = clamp(
         math.sin(math.radians(center[0])),
@@ -138,8 +129,8 @@ def calculate_bounding_box(
 
     # adjusted center point pixel coordinates
     cp = {
-        'x': _C['x'] + center[1] * _J,
-        'y': _C['y'] + 0.5 * math.log((1 + a) / (1 - a)) * -_L
+        'x': consts.tile_center_p['x'] + center[1] * consts.pixel_per_degree,
+        'y': consts.tile_center_p['y'] + 0.5 * math.log((1 + a) / (1 - a)) * - consts.pixel_per_radian
     }
 
     top_left = pt_to_lat_lon({'x': cp['x'] - half_pw_x, 'y': cp['y'] - half_pw_y})
@@ -179,8 +170,8 @@ def reverse_bounding_box(
             1 - 1E-15
             )
         cp = {
-            'x': _C['x'] + lon * _J,
-            'y': _C['y'] + 0.5 * math.log((1 + a) / (1 - a)) * -_L
+            'x': consts.tile_center_p['x'] + lon * consts.pixel_per_degree,
+            'y': consts.tile_center_p['y'] + 0.5 * math.log((1 + a) / (1 - a)) * -consts.pixel_per_radian
         }
         return cp
 
@@ -197,13 +188,10 @@ def reverse_bounding_box(
     # We get the high resolution first, then resize to the desired dimensions if needed
     img_size = 640
 
-    # Determine width of the image based on the pixel dimensions
     # The bigger width along x or y will be the img_size
     # The other width is adjusted based on aspect ratio
-    img_w = img_size if half_pw_x > half_pw_y else int(img_size * half_pw_y / half_pw_x)
-
     # Determine zoom level
-    zoom = int(-math.log2(half_pw_x / img_w) - 1)
+    zoom = int(-math.log2(max(half_pw_x, half_pw_y) / img_size) - 1)
 
     # Calculate final image width and height based on zoom level
     scaling_factor = 2 ** (zoom + 1)

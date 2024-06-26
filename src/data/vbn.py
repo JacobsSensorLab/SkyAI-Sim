@@ -11,8 +11,8 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler as Scaler
-from tensorflow.keras import layers
-from tensorflow.keras.models import Sequential
+from keras import layers
+from keras.models import Sequential
 import tensorflow as tf
 
 from src.utils import consts, data_helper, geo_helper, img_helper

@@ -21,8 +21,8 @@ def parse_args():
     """
 
     parser = argparse.ArgumentParser(
-        prog='VBN Project',
-        description='Multimodal Aerial Image translation / location estimation'
+        prog='SkyAI Sim Project',
+        description='Aerial Imaging Simulation from Satellite Data'
         )
     # Define the arguments in a dictionary
     arguments = {

@@ -63,23 +63,24 @@ class GoogleMap(VBN, ImageData):
             else kwargs['args'].data_dir
 
         # Add dataset information to the name of the dataset folder
-        data_dir += '_' + self.map_type
+        data_dir += self.map_type
         data_dir += '_' + str(self.overlap)
         data_dir += str(self.args.coords)[1:-1].replace(', ', '_')
         self.data_dir = Path(data_dir)
 
-        # aspect ratio and altitude in meters
+        # aspect ratio and ground level altitude in meters
         ar = self.args.aspect_ratio[0] / self.args.aspect_ratio[1]
-        alt = self.args.coords[4] * 0.3048 # convert feet to meters
+        agl_m = self.args.coords[4] * 0.3048 # convert feet to meters
 
         # Calculate diagonal in meters in image using fov and ar
-        img_diag_m = 2 * alt * np.tan(np.radians(self.args.fov/2))
+        d_m = 2 * agl_m * np.tan(np.radians(self.args.fov/2))
 
         # Calculate width and height in meters from the diagonal
-        self.img_size_m = (img_diag_m * np.sin(np.arctan(ar)),
-                           img_diag_m * np.cos(np.arctan(ar)))
+        self.img_size_m = (d_m * np.sin(np.arctan(ar)),
+                           d_m * np.cos(np.arctan(ar)))
 
         data_helper.check_folder(self.data_dir)
+
         self.check_data()
 
         self.input_dir = data_helper.find_files(self.data_dir /
@@ -106,7 +107,7 @@ class GoogleMap(VBN, ImageData):
                                 overlap=self.overlap,
                                 last_img_name=latest_image_name)
 
-    def config(self, download=True):
+    def config(self, download_raster=True):
         """
         Downloads the data, configures, then do the geolocation calculations.
         Parameters:
@@ -116,8 +117,10 @@ class GoogleMap(VBN, ImageData):
         Processing Logic:
             - Calculate the minimum and maximum of the original output.
             - Clean up the data.
+
+        todo: more conditions for cleanup
         """
-        if download:
+        if download_raster:
             self.complete_download()
 
         super().config()
@@ -127,7 +130,7 @@ class GoogleMap(VBN, ImageData):
 
     def calc_entropy(self, dir):
         def entropy_per_row(row):
-            img = self.imread(dir / row['img_names'])
+            img = self.imread(Path(dir) / Path(row['img_names']))
             entropy = skimage.measure.shannon_entropy(img)
             return entropy
         return entropy_per_row
@@ -154,7 +157,8 @@ class GoogleMap(VBN, ImageData):
                 meta_data,
                 columns=['img_names', 'columns', 'row', 'Lat', 'Lon', 'Alt']
             )
-            print(self.meta_df)
+            #todo: calc entropy for the same map type
+            #todo: apply cleaning based on roadmap data if available in data cleaning func
             road_dir = self.data_dir
             if self.map_type != 'roadmap':
                 road_folder_name = self.data_dir.name.replace(
@@ -187,7 +191,7 @@ class GoogleMap(VBN, ImageData):
 
         map_zoom, map_size = geo_helper.reverse_bounding_box(top_left, buttom_right)
 
-        img_w_m, img_h_m = self.img_size_m
+        x_width_m, y_width_m = self.img_size_m
 
         center_lat = (top_left[0] + buttom_right[0]) / 2
         center_lon = (top_left[1] + buttom_right[1]) / 2
@@ -197,12 +201,11 @@ class GoogleMap(VBN, ImageData):
         land_height = geopy.distance.geodesic(top_left,
                                               (buttom_right[0], top_left[1])).km
 
-        n_img_w = int((land_width * 1000 - img_w_m)\
-            /(img_w_m * ((100 - self.overlap) / 100)) + 1)
-        n_img_h = int((land_height * 1000 - img_h_m)\
-            /(img_h_m * ((100 - self.overlap) / 100)) + 1)
+        n_img_w = int((land_width * 1000 - x_width_m)\
+            /(x_width_m * ((100 - self.overlap) / 100)) + 1)
+        n_img_h = int((land_height * 1000 - y_width_m)\
+            /(y_width_m * ((100 - self.overlap) / 100)) + 1)
 
-        print(n_img_w, n_img_h)
         pretty("[INFO]"
             , "\n\Theoretical # Images:", n_img_w, '*' , n_img_h,
             '=', n_img_w * n_img_h,
@@ -215,8 +218,8 @@ class GoogleMap(VBN, ImageData):
             round(land_height, 3),
             '=', round(land_width * land_height), 'km^2',
             '\n\tImage area = image width * image height (m):',
-            round(img_w_m), '*' , round(img_h_m),
-            '=', round(img_w_m * img_h_m), 'm^2',
+            round(x_width_m), '*' , round(y_width_m),
+            '=', round(x_width_m * y_width_m), 'm^2',
             info=self)
 
         map_name = "map_" + '_'.join(
@@ -231,14 +234,8 @@ class GoogleMap(VBN, ImageData):
                 size=map_size
                 )
         else:
-            print('Map image is available in', self.data_dir, 'as', map_name)
-
-        response = input("Do you want to proceed? (y/yes): ").strip().lower()
-        if response in ["y", "yes"]:
-            print("Confirmed.")
-        else:
-            print("Not Proceeding. Quitting the program.")
-            quit()
+            pretty('Map image is available in', self.data_dir, 'as', map_name,
+                   info=self)
 
     def gen_raster_from_map(self,
                         top_left_coords: tuple,
@@ -292,7 +289,6 @@ class GoogleMap(VBN, ImageData):
         "\n\tImage Size", im_size, '(pixels)',
         info=self)
 
-        #.................. print('Warning for number of images')..............
         if last_img_name != -1:
             last_x, last_y, lat_i, lon_j, _ = last_img_name[:-4].split('_')
             last_x, last_y = int(last_x), int(last_y)
@@ -325,41 +321,48 @@ class GoogleMap(VBN, ImageData):
         i, j = last_x, last_y
 
         data_helper.check_folder(self.data_dir / 'images')
-        with tqdm(position=0, leave=True, total=n_images_x*n_images_y) as pbar:
-            pbar.update((n_images_x*last_y) + last_x)
-            for j in range(last_y, n_images_y):
-                i = last_x if j == last_y else 0
-                while i < n_images_x:
-                    if lat_i < bottom_right_coords[0] - 0.02 or lon_j > bottom_right_coords[1] + 0.02:
-                        raise Exception(
-                            "Exceeding Bottom Right Coordinate limits; Bottom right coordinates:",
-                            bottom_right_coords,
-                            'Current coordinates:', lat_i, lon_j,
-                            'Indices:', i, j
-                        )
 
-                    out_name = str(i) + '_' \
-                               + str(j) + '_' \
-                               + str(lat_i) \
-                               + '_' + str(lon_j) \
-                               + '_' + str(raster_zoom) + '.jpg'
+        response = input("Do you want to proceed? (y/yes): ").strip().lower()
+        if response in ["y", "yes"]:
+            print("Confirmed.")
+            with tqdm(position=0, leave=True, total=n_images_x*n_images_y) as pbar:
+                pbar.update((n_images_x*last_y) + last_x)
+                for j in range(last_y, n_images_y):
+                    i = last_x if j == last_y else 0
+                    while i < n_images_x:
+                        if lat_i < bottom_right_coords[0] - 0.02 or lon_j > bottom_right_coords[1] + 0.02:
+                            raise Exception(
+                                "Exceeding Bottom Right Coordinate limits; Bottom right coordinates:",
+                                bottom_right_coords,
+                                'Current coordinates:', lat_i, lon_j,
+                                'Indices:', i, j
+                            )
 
-                    output_dir = self.data_dir / 'images' / out_name
-                    geo_helper.get_static_map_image(
-                        output_dir,
-                        [lat_i, lon_j],
-                        map_type=self.map_type,
-                        zoom=raster_zoom,
-                        size=im_size
-                        )
-                    x += raster_w * (100 - overlap) / 100
-                    _, lon_j = geo_helper.utm2geo(x, y)
+                        out_name = str(i) + '_' \
+                                + str(j) + '_' \
+                                + str(lat_i) \
+                                + '_' + str(lon_j) \
+                                + '_' + str(raster_zoom) + '.jpg'
 
-                    pbar.update()
-                    i += 1
-                y -= raster_h * (100 - overlap) / 100
-                x = x_orig
-                lat_i, lon_j = geo_helper.utm2geo(x, y)
+                        output_dir = self.data_dir / 'images' / out_name
+                        geo_helper.get_static_map_image(
+                            output_dir,
+                            [lat_i, lon_j],
+                            map_type=self.map_type,
+                            zoom=raster_zoom,
+                            size=im_size
+                            )
+                        x += raster_w * (100 - overlap) / 100
+                        _, lon_j = geo_helper.utm2geo(x, y)
+
+                        pbar.update()
+                        i += 1
+                    y -= raster_h * (100 - overlap) / 100
+                    x = x_orig
+                    lat_i, lon_j = geo_helper.utm2geo(x, y)
+        else:
+            pretty("Not Proceeding the download. Continuing without the download...",
+                   self=info)
 
         print('\t Number of rows and columns:', i, j)
 
@@ -425,8 +428,7 @@ class GoogleMap(VBN, ImageData):
         return add_per_row
 
     def imread(self, img_path):
-
-        image_string = tf.io.read_file(img_path)
+        image_string = tf.io.read_file(str(img_path))
         image = tf.image.decode_jpeg(image_string, channels=1)
         image = tf.image.convert_image_dtype(image, tf.uint8)
 

@@ -28,11 +28,11 @@ def main():
     args = consts.ARGS
     aerial_data = GoogleMap(
         args=args,
-        map_type='satellite',
+        map_type='roadmap',
         data_dir=args.data_dir,
         overlap=args.overlap
         )
-    aerial_data.config()
+    aerial_data.config(download_raster=True)
 
     # Prepar the dataset for a keras DNN task
     # augmented_data = aerial_data.config_dnn()
