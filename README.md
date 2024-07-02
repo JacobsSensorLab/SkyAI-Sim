@@ -13,7 +13,7 @@ https://colab.research.google.com/drive/1Huaq96ssyPMy7Xx1IVcUQaoPZu0Idfhk?usp=sh
 1. SSH to the remote directory and forward the port such as:
 
 ```
-ssh -L localhost:18888:localhost:8888 [username]@[hostname or IP address]
+ssh -L localhost:8888:localhost:8888 [username]@[hostname or IP address]
 ```
 
 2. Run the following in the remote terminal:
@@ -23,7 +23,7 @@ jupyter notebook \
     --port=8888 \
     --NotebookApp.port_retries=0
 ```
-2. The previous step will give you two URLs in result. Copy either. For example:
+3. The previous step will give you two URLs in result. Copy either. For example:
 ```
 http://localhost:8888/?token=0f96a96950ca8aa79c52fb1fa5758e648b5052cd91417dd8
 ```
@@ -31,16 +31,19 @@ or
 ```
 http://127.0.0.1:8888/?token=0f96a96950ca8aa79c52fb1fa5758e648b5052cd91417dd8
 ```
-2. On the bar above select the arrow next to the connect button and choose "connect to a local runtime".
-2. A popup window will be shown, paste the copied URL in the input section and change 8888 in it to 18888. For the above example will be:
+4. On the bar above select the arrow next to the connect button and choose "connect to a local runtime".
+5. A popup window will be shown, paste the copied URL in the input section.
+6. Press "Connect" and voila.
+7. If you are using a conda environment for your packages, you might need the following steps. On the remote server, install ipykernel:
 ```
-http://localhost:18888/?token=0f96a96950ca8aa79c52fb1fa5758e648b5052cd91417dd8
+conda install ipykernel
 ```
-or
+1. Then, register the Conda environment as a Jupyter/Colab kernel (Replace <environment_name> with the name of your Conda environment):
 ```
-http://127.0.0.1:18888/?token=0f96a96950ca8aa79c52fb1fa5758e648b5052cd91417dd8
+!python -m ipykernel install --user --name=<environment_name>
 ```
-3. Press "Connect" and voila.
+1. After installing and registering the kernel, you can switch to it from within your Colab notebook interface by selecting it from the kernel dropdown menu (click on "Runtime" > "Change runtime type" > select your Conda environment).
+2.  Always restart the Colab runtime after setting up a custom kernel or installing packages to ensure the changes take effect. Click on "Runtime" in the menu and select "Restart runtime...".
 </details>
 
 

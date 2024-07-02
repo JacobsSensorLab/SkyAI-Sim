@@ -6,7 +6,9 @@
 """
 from typing import Tuple, List
 import math
-import geopy.distance
+from geopy.distance import geodesic
+from geopy.point import Point
+from matplotlib.streamplot import OutOfBounds
 import pyproj
 import numpy as np
 import tensorflow as tf
@@ -46,7 +48,7 @@ def get_static_map_image(
     except ModuleNotFoundError:
         print('Warning: hidden_file.py is not available.')
         return
-    base_url = "https://maps.googleapis.com/maps/api/staticmap"
+    base_url = "https://earthengine.googleapis.com/v1/projects/ee-sdjkhkosh/assets/YOUR_ASSET_ID"
     params = {
         "center": f"{coords[0]},{coords[1]}",
         "zoom": zoom,
@@ -73,7 +75,7 @@ def get_static_map_image(
             )
 
 
-def calculate_bounding_box(
+def calc_bbox_api(
     center: Tuple[float, float], zoom: int,
     map_size: Tuple[int, int]
     ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
@@ -139,9 +141,10 @@ def calculate_bounding_box(
     return top_left, bottom_right
 
 
-def reverse_bounding_box(
+def get_zoom_from_bounds(
     top_left: Tuple[float, float],
-    bottom_right: Tuple[float, float]
+    bottom_right: Tuple[float, float],
+    zoom_bound=22
     ) -> Tuple[int, List[int]]:
     """
     Reverse the bounding box coordinates from lat/lon to zoom level and image size.
@@ -152,6 +155,8 @@ def reverse_bounding_box(
             Latitude and longitude of the top left corner of the bounding box.
         - bottom_right (tuple):
             Latitude and longitude of the bottom right corner of the bounding box.
+        - zoom_bound (int): maximum accepted zoom level (based on map type)
+                default is 22 (for satellite and roadmap)
     Returns:
         - zoom (int): Zoom level of the bounding box.
         - img_size (list): Image size of the bounding box in the format [width, height].
@@ -197,6 +202,9 @@ def reverse_bounding_box(
     scaling_factor = 2 ** (zoom + 1)
     img_w = int(half_pw_x * scaling_factor)
     img_h = int(half_pw_y * scaling_factor)
+
+    if zoom > 22:
+        raise  OutOfBounds("Zoom Level", zoom, "is out of bounds.")
 
     return zoom, [img_w, img_h]
 
@@ -274,9 +282,9 @@ def geo_calcs(data):
     coords_dl = (data_min['Lat'], data_max['Lon'])
     coords_dr = (data_max['Lat'], data_max['Lon'])
 
-    land_width = geopy.distance.geodesic(coords_ul, coords_ur).km
-    land_height = geopy.distance.geodesic(coords_ul, coords_dl).km
-    img_diagonal = geopy.distance.geodesic(coords_ul, coords_dr).km
+    land_width = geodesic(coords_ul, coords_ur).km
+    land_height = geodesic(coords_ul, coords_dl).km
+    img_diagonal = geodesic(coords_ul, coords_dr).km
 
     # only applicable if the images form a recangle overall
     land_area = land_width * land_height
@@ -334,6 +342,7 @@ def geodist_loss_params(y_max, y_min):
     """
         Loss funcion to apply haversine distance difference between
         unnormalized inputs.
+        todo: update with scaler
     """
     def geodist_loss(y_pred, y_true):
         y_pred = norm_helper.norm_undo(y_pred, y_max, y_min)
@@ -368,7 +377,7 @@ def haversine_distance(coords):
         tf.math.cos(coords[0]) * tf.math.cos(coords[2]) * tf.math.sin(dlon / 2) ** 2
     c = 2 * tf.math.atan2(tf.math.sqrt(a), tf.math.sqrt(1 - a))
 
-    distance = geopy.distance.EARTH_RADIUS * c
+    distance = consts.EARTH_RADIUS * c
     return distance * 1000
 
 
@@ -413,3 +422,42 @@ def utm2geo(x: float, y: float, epsg: int = consts.ARGS.utm) -> Tuple[float, flo
         epsg, "EPSG:4326", always_xy=True
         ).transform(x, y)
     return lat, lon
+
+def calc_bbox_m(center_coords, bbox_m):
+    """
+    Calculates the bounding box coordinates from a given center point and dimensions.
+    Parameters:
+        - center_coords (tuple[float, float]): Latitude and longitude of the center point.
+        - bbox_m (tuple[float, float]): X, Y Widths of the bounding box in meters.
+    Returns:
+        - tuple[tuple[float, float], tuple[float, float]]:
+            Coordinates of the top-left and bottom-right corners of the bounding box.
+    Example:
+        - calc_bbox_m((37.7749, -122.4194), 2000, 1000)
+                -> ((37.7840, -122.4293), (37.7658, -122.4095))
+    """
+    center_point = Point(center_coords)
+
+    # Calculate half of the width and height in degrees
+    half_x = bbox_m[0] / 2
+    half_y = bbox_m[1] / 2
+
+    # Top-left corner (north-west)
+    top_left = geodesic(meters=half_y).destination(center_point, 0)  # North
+    top_left = geodesic(meters=half_x).destination(top_left, 270)  # West
+
+    # Bottom-right corner (south-east)
+    bottom_right = geodesic(meters=half_y).destination(center_point, 180)  # South
+    bottom_right = geodesic(meters=half_x).destination(bottom_right, 90)  # East
+
+    return (top_left.latitude, top_left.longitude), (bottom_right.latitude, bottom_right.longitude)
+
+def get_map_dim_m(fov_d, agl_f, aspect_ratio):
+    agl_m = agl_f * 0.3048 # convert feet to meters
+
+    # Calculate diagonal in meters in image using fov and ar
+    d_m = 2 * agl_m * np.tan(np.radians(fov_d/2))
+
+    # Calculate width and height in meters from the diagonal
+    return np.asanyarray(d_m * np.sin(np.arctan(aspect_ratio)),
+            d_m * np.cos(np.arctan(aspect_ratio))).tolist()

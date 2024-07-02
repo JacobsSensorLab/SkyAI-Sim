@@ -8,6 +8,7 @@ import os
 import glob
 from pathlib import Path
 import geopy
+from matplotlib.streamplot import OutOfBounds
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
@@ -65,19 +66,14 @@ class GoogleMap(VBN, ImageData):
         # Add dataset information to the name of the dataset folder
         data_dir += self.map_type
         data_dir += '_' + str(self.overlap)
-        data_dir += str(self.args.coords)[1:-1].replace(', ', '_')
+        data_dir += '_' + str(self.args.coords)[1:-1].replace(', ', '_')
         self.data_dir = Path(data_dir)
 
-        # aspect ratio and ground level altitude in meters
-        ar = self.args.aspect_ratio[0] / self.args.aspect_ratio[1]
-        agl_m = self.args.coords[4] * 0.3048 # convert feet to meters
-
-        # Calculate diagonal in meters in image using fov and ar
-        d_m = 2 * agl_m * np.tan(np.radians(self.args.fov/2))
-
-        # Calculate width and height in meters from the diagonal
-        self.img_size_m = (d_m * np.sin(np.arctan(ar)),
-                           d_m * np.cos(np.arctan(ar)))
+        self.img_size_m = geo_helper.get_map_dim_m(
+            self.args.fov,
+            self.args.coords[4],
+            self.args.aspect_ratio[0] / self.args.aspect_ratio[1]
+            )
 
         data_helper.check_folder(self.data_dir)
 
@@ -189,7 +185,7 @@ class GoogleMap(VBN, ImageData):
         top_left = self.args.coords[0], self.args.coords[1]
         buttom_right = self.args.coords[2], self.args.coords[3]
 
-        map_zoom, map_size = geo_helper.reverse_bounding_box(top_left, buttom_right)
+        map_zoom, map_size = geo_helper.get_zoom_from_bounds(top_left, buttom_right)
 
         x_width_m, y_width_m = self.img_size_m
 
@@ -202,9 +198,9 @@ class GoogleMap(VBN, ImageData):
                                               (buttom_right[0], top_left[1])).km
 
         n_img_w = int((land_width * 1000 - x_width_m)\
-            /(x_width_m * ((100 - self.overlap) / 100)) + 1)
+            /(x_width_m * ((100 - self.overlap) / 100))) + 1
         n_img_h = int((land_height * 1000 - y_width_m)\
-            /(y_width_m * ((100 - self.overlap) / 100)) + 1)
+            /(y_width_m * ((100 - self.overlap) / 100))) + 1
 
         pretty("[INFO]"
             , "\n\Theoretical # Images:", n_img_w, '*' , n_img_h,
@@ -263,7 +259,7 @@ class GoogleMap(VBN, ImageData):
         map_brm = geo_helper.geo2utm(bottom_right_coords[0], bottom_right_coords[1])
 
         tl, br = geo_helper.meters2geo(center=top_left_coords, img_size=self.img_size_m)
-        raster_zoom, im_size = geo_helper.reverse_bounding_box(tl, br)
+        raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
 
         tlm = geo_helper.geo2utm(tl[0], tl[1])
         brm = geo_helper.geo2utm(br[0], br[1])
@@ -276,9 +272,9 @@ class GoogleMap(VBN, ImageData):
         im_size[1] += int(im_size[1] * 0.2)
 
         map_size_m = abs(np.subtract(map_tlm[:2], map_brm[:2]))
-        n_images_x = int(1 + (map_size_m[0] - raster_w)\
+        n_images_x = 1 + int((map_size_m[0] - raster_w)\
                     /(((100 - overlap) / 100) * raster_w))
-        n_images_y = int(1 + (map_size_m[1] - raster_h)\
+        n_images_y = 1 + int((map_size_m[1] - raster_h)\
                     /(((100 - overlap) / 100) * raster_h))
 
         pretty("[INFO]",
@@ -331,7 +327,7 @@ class GoogleMap(VBN, ImageData):
                     i = last_x if j == last_y else 0
                     while i < n_images_x:
                         if lat_i < bottom_right_coords[0] - 0.02 or lon_j > bottom_right_coords[1] + 0.02:
-                            raise Exception(
+                            raise OutOfBounds(
                                 "Exceeding Bottom Right Coordinate limits; Bottom right coordinates:",
                                 bottom_right_coords,
                                 'Current coordinates:', lat_i, lon_j,

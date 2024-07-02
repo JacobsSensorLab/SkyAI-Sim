@@ -192,7 +192,7 @@ def make_pairs(
                                           data1.org_out_min[cols])
 
             # calculate top left and bottom right coordinates for current image
-            coords = geo_helper.calculate_bounding_box(
+            coords = geo_helper.calc_bbox_api(
                 label[0: 2],
                 label[2],
                 data1.input_dim
@@ -296,7 +296,7 @@ def find_random_sample(
         data.org_out_max[cols],
         data.org_out_min[cols]
     )
-    coords = geo_helper.calculate_bounding_box(
+    coords = geo_helper.calc_bbox_api(
         label[:2],
         label[2],
         data.input_dim
@@ -353,7 +353,7 @@ def make_triplets(data1, data2, mode):
 
             pos_img = images2[idx_a]
             pos_imgs.append(pos_img)
-            coords = geo_helper.calculate_bounding_box(label[0: 2],
+            coords = geo_helper.calc_bbox_api(label[0: 2],
                                                         label[2],
                                                         data1.input_dim)
             idx_b, _, coords_b = find_random_sample(
