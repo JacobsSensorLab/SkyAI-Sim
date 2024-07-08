@@ -50,6 +50,19 @@ class GoogleMap(VBN, ImageData):
         """
         ImageData.__init__(self, **kwargs)
         VBN.__init__(self, **kwargs)
+        self.log = pd.DataFrame(
+            index=['y/lat', 'x/lon', 'z/agl', 'total/area'],
+            columns = ['TL',
+                       'BR',
+                       'Center',
+                       'TL (UTM)',
+                       'BR (UTM)',
+                       'Map Size (m)',
+                       'Map Size (pixel/zoom)',
+                       '# Raster Images',
+                       '1 Image Size (m)',
+                       '1 Image Size (pixel/zoom)',
+                       ])
         self.data_info = {'x': 'images'}
 
         self.input_dim = kwargs['args'].img_size
@@ -69,11 +82,19 @@ class GoogleMap(VBN, ImageData):
         data_dir += '_' + str(self.args.coords)[1:-1].replace(', ', '_')
         self.data_dir = Path(data_dir)
 
-        self.img_size_m = geo_helper.get_map_dim_m(
-            self.args.fov,
-            self.args.coords[4],
-            self.args.aspect_ratio[0] / self.args.aspect_ratio[1]
-            )
+        self.log['1 Image Size (m)'].iloc[:-1] =\
+            np.round(
+                geo_helper.get_map_dim_m(
+                self.args.fov,
+                self.args.coords[4],
+                self.args.aspect_ratio[0] / self.args.aspect_ratio[1]
+                ),
+                2)
+        self.log['1 Image Size (m)'].iloc[-1] =\
+            round(self.log['1 Image Size (m)'].iloc[0] *\
+                self.log['1 Image Size (m)'].iloc[1], 2)
+        self.log['TL'].iloc[:2] = self.args.coords[:2]
+        self.log['BR'].iloc[:2] = self.args.coords[2:4]
 
         data_helper.check_folder(self.data_dir)
 
@@ -84,24 +105,84 @@ class GoogleMap(VBN, ImageData):
                                                  'jpg')
         data_helper.check_folder(self.data_dir / self.data_info['x'])
 
-    def complete_download(self):
+    def check_data(self):
         """
-        Finds the latest file downloaded from the data directory
+            Generate GoogleMap data from a given big picture map
+            These calculations are theoretical measurements,
+            based on TL and BR coordinates of the map,
+            slightly different than the area captured by images in geo_helper.geo_calcs
 
-        todo: ask for confirmation before download
+        :return:
         """
-        sorted_imgs = natsorted(
-            glob.glob(
-                os.path.join(self.data_dir / 'images', "*.jpg")
-            ),
-            reverse=True
+        top_left = self.args.coords[0], self.args.coords[1]
+        bottom_right = self.args.coords[2], self.args.coords[3]
+
+        map_zoom, map_size =\
+            geo_helper.get_zoom_from_bounds(top_left, bottom_right)
+        self.log['Map Size (pixel/zoom)'].iloc[:-1] = map_size + [map_zoom]
+
+        x_width_m, y_width_m, _, _ = self.log['1 Image Size (m)']
+
+        center_lat = (top_left[0] + bottom_right[0]) / 2
+        center_lon = (top_left[1] + bottom_right[1]) / 2
+        self.log['Center'].iloc[:2] = center_lat, center_lon
+        ## Convert geolocation of the raster corners to utm
+        # TL point
+        self.log['TL (UTM)'].iloc[:2] =\
+            np.round(geo_helper.geo2utm(top_left[0], top_left[1]), 2)
+
+        # TL point
+        self.log['BR (UTM)'].iloc[:2] =\
+            np.round(geo_helper.geo2utm(bottom_right[0], bottom_right[1]), 2)
+
+        ## Start Raster from TL of the map
+        # get coordinates of the corners
+        # of the top most left image in the raster mission
+        tl, br = geo_helper.meters2geo(
+            center=top_left,
+            img_size=self.log['1 Image Size (m)'].iloc[:2])
+        raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
+        self.log['1 Image Size (pixel/zoom)'].iloc[:-1] = im_size + [raster_zoom]
+
+        ## Convert geolocation of the raster corners to utm
+        # TL point
+        map_tlm = geo_helper.geo2utm(top_left[0], top_left[1])
+
+        # TL point
+        map_brm = geo_helper.geo2utm(bottom_right[0], bottom_right[1])
+        self.log['Map Size (m)'].iloc[:2] = np.abs(np.subtract(map_tlm[:2], map_brm[:2])).round(2)
+        self.log['Map Size (m)'].iloc[-1] =\
+            round(self.log['Map Size (m)'].iloc[0] *\
+                self.log['Map Size (m)'].iloc[1], 2)
+
+        self.log['# Raster Images'].iloc[:2] = (
+            ((self.log['Map Size (m)'].iloc[:2] - self.log['1 Image Size (m)'].iloc[:2])
+            / (self.log['1 Image Size (m)'].iloc[:2] * (1 - self.overlap)))
+            .astype(int) + 1
         )
-        latest_image_name = sorted_imgs[0].split('/')[-1] if len(sorted_imgs) else -1
-        print(latest_image_name)
-        self.gen_raster_from_map((self.args.coords[0], self.args.coords[1]),
-                                (self.args.coords[2], self.args.coords[3]),
-                                overlap=self.overlap,
-                                last_img_name=latest_image_name)
+        self.log['# Raster Images'].iloc[-1] =\
+            self.log['# Raster Images'].iloc[0] *\
+                self.log['# Raster Images'].iloc[1]
+
+
+        pretty('[INFO] Data detailed values before download.\n',
+               'TL = Top Left, BR = Bottom Right\n',
+               self.log.to_string(), info=self)
+
+        map_name = "map_" + '_'.join(
+            list(map(str, self.args.coords))
+        ) + ".jpg"
+        if map_name not in os.listdir(self.data_dir):
+            geo_helper.get_static_map_image(
+                self.data_dir / map_name,
+                [center_lat, center_lon],
+                map_type=self.map_type,
+                zoom=map_zoom,
+                size=map_size
+                )
+        else:
+            pretty('Map image is available in', self.data_dir, 'as', map_name,
+                   info=self)
 
     def config(self, download_raster=True):
         """
@@ -124,18 +205,24 @@ class GoogleMap(VBN, ImageData):
               geo_helper.geo_calcs(self.labels)
         self.cleanup_data()
 
-    def calc_entropy(self, dir):
-        def entropy_per_row(row):
-            img = self.imread(Path(dir) / Path(row['img_names']))
-            entropy = skimage.measure.shannon_entropy(img)
-            return entropy
-        return entropy_per_row
+    def complete_download(self):
+        """
+        Finds the latest file downloaded from the data directory
+        """
+        sorted_imgs = natsorted(
+            glob.glob(
+                os.path.join(self.data_dir / 'images', "*.jpg")
+            ),
+            reverse=True
+        )
+        latest_image_name = sorted_imgs[0].split('/')[-1] if len(sorted_imgs) else -1
+        print('Latest Image Name:', latest_image_name)
+        self.gen_raster_from_map((self.args.coords[0], self.args.coords[1]),
+                                (self.args.coords[2], self.args.coords[3]),
+                                overlap=self.overlap,
+                                last_img_name=latest_image_name)
 
     def config_output(self):
-        """
-        todo: convert zoom to altitude
-        """
-
         if os.path.exists(self.data_dir / 'meta_data.csv'):
             pretty('Found the metadata file...',
                info=self)
@@ -173,119 +260,77 @@ class GoogleMap(VBN, ImageData):
 
         self.labels = self.meta_df.loc[:, ['Lat', 'Lon', 'Alt']]
 
-    def check_data(self):
-        """
-            Generate GoogleMap data from a given big picture map
-            These calculations are theoretical measurements,
-            based on top left and bottom right coordinates of the map,
-            slightly different than the area captured by images in geo_helper.geo_calcs
-
-        :return:
-        """
-        top_left = self.args.coords[0], self.args.coords[1]
-        buttom_right = self.args.coords[2], self.args.coords[3]
-
-        map_zoom, map_size = geo_helper.get_zoom_from_bounds(top_left, buttom_right)
-
-        x_width_m, y_width_m = self.img_size_m
-
-        center_lat = (top_left[0] + buttom_right[0]) / 2
-        center_lon = (top_left[1] + buttom_right[1]) / 2
-
-        land_width  = geopy.distance.geodesic(top_left,
-                                              (top_left[0], buttom_right[1])).km
-        land_height = geopy.distance.geodesic(top_left,
-                                              (buttom_right[0], top_left[1])).km
-
-        n_img_w = int((land_width * 1000 - x_width_m)\
-            /(x_width_m * ((100 - self.overlap) / 100))) + 1
-        n_img_h = int((land_height * 1000 - y_width_m)\
-            /(y_width_m * ((100 - self.overlap) / 100))) + 1
-
-        pretty("[INFO]"
-            , "\n\Theoretical # Images:", n_img_w, '*' , n_img_h,
-            '=', n_img_w * n_img_h,
-            "\n\tCenter (Latitude, Longitude):", center_lat, center_lon
-            , "\n\tTop Left (Latitude, Longitude):", top_left
-            , "\n\tBottom Right (Latitude, Longitude):", buttom_right
-            , "\n\tMap Size:", map_size, '(pixels)',
-            '\n\tMap area =  map width * map height (km):',
-            round(land_width, 3), '*' ,
-            round(land_height, 3),
-            '=', round(land_width * land_height), 'km^2',
-            '\n\tImage area = image width * image height (m):',
-            round(x_width_m), '*' , round(y_width_m),
-            '=', round(x_width_m * y_width_m), 'm^2',
-            info=self)
-
-        map_name = "map_" + '_'.join(
-            list(map(str, self.args.coords))
-        ) + ".jpg"
-        if map_name not in os.listdir(self.data_dir):
-            geo_helper.get_static_map_image(
-                self.data_dir / map_name,
-                [center_lat, center_lon],
-                map_type=self.map_type,
-                zoom=map_zoom,
-                size=map_size
-                )
-        else:
-            pretty('Map image is available in', self.data_dir, 'as', map_name,
-                   info=self)
+    def calc_entropy(self, dir):
+        def entropy_per_row(row):
+            img = self.imread(Path(dir) / Path(row['img_names']))
+            entropy = skimage.measure.shannon_entropy(img)
+            return entropy
+        return entropy_per_row
 
     def gen_raster_from_map(self,
                         top_left_coords: tuple,
                         bottom_right_coords: tuple,
                         overlap: int = 0,
-                        last_img_name: str = -1):
+                        last_img_name: str = -1,
+                        margin: int = 20):
+
         """
-        Generates raster images from google_map data
-        Saves them in the DATA_DIr consts address
-        :param top_left_coords:  tuple
-        :param bottom_right_coords:  tuple
-        :param raster_zoom: int
-        :param overlap: int in [0, 100]
-
-        todo: break into smaller functions
-        todo: imread needs fixes (preprocess)
-        todo: warn and refer  to the following link if numbers exceed 5k
-        https://about.google/brand-resource-center/products-and-services/geo-guidelines/#required-attribution/
+        Generate a raster of map images based on specified coordinates and other parameters.
+        Parameters:
+            - top_left_coords (tuple): Geolocation coordinates (latitude, longitude)
+                for the top-left corner of the raster.
+            - bottom_right_coords (tuple): Geolocation coordinates (latitude, longitude)
+                for the bottom-right corner of the raster.
+            - overlap (int, optional): Percentage overlap between images in the raster.
+                Default is 0.
+            - last_img_name (str, optional):
+                Name of the last downloaded image to resume the download process, if applicable.
+                Default is -1.
+            - margin (int, optional): Percentage of margin to add to the image for removing marks.
+                Default is 20.
+        Returns:
+            - None: The function does not return any value but downloads the raster images to the specified directory.
+        Example:
+            - gen_raster_from_map((34.052235, -118.243683), (34.040713, -118.246769))
         """
-
-        # geolocation of the center of the first raster image
-        # belongs to the top left point
-
+        ## Convert geolocation of the raster corners to utm
+        # TL point
         map_tlm = geo_helper.geo2utm(top_left_coords[0], top_left_coords[1])
+
+        # TL point
         map_brm = geo_helper.geo2utm(bottom_right_coords[0], bottom_right_coords[1])
 
-        tl, br = geo_helper.meters2geo(center=top_left_coords, img_size=self.img_size_m)
+        ## Start Raster from TL of the map
+        # get coordinates of the corners
+        # of the top most left image in the raster mission
+        tl, br = geo_helper.meters2geo(center=top_left_coords,
+                                       img_size=self.log['1 Image Size (m)'][:2])
         raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
 
+        # Convert coordinates to UTM
         tlm = geo_helper.geo2utm(tl[0], tl[1])
         brm = geo_helper.geo2utm(br[0], br[1])
         x_orig = tlm[0]
-        raster_h = np.abs(tlm[1] - brm[1])
-        raster_w = np.abs(tlm[0] - brm[0])
 
-        # this part is to remove the google sign from the bottom of the picture
-        # to work right, imread crop should be as is
-        im_size[1] += int(im_size[1] * 0.2)
+        # Width of each raster image along x, y in meters
+        raster_wy = np.abs(tlm[1] - brm[1])
+        raster_wx = np.abs(tlm[0] - brm[0])
 
-        map_size_m = abs(np.subtract(map_tlm[:2], map_brm[:2]))
-        n_images_x = 1 + int((map_size_m[0] - raster_w)\
-                    /(((100 - overlap) / 100) * raster_w))
-        n_images_y = 1 + int((map_size_m[1] - raster_h)\
-                    /(((100 - overlap) / 100) * raster_h))
+        ## Add vertical margins
+        # so that the google mark can be removed later after download
+        # the same margin value has to be applied to the preprocess_image method
+        im_size[1] += int(im_size[1] * margin/100)
 
-        pretty("[INFO]",
-        "\tFirst (Latitude, Longitude):", top_left_coords,
-        "\n\tLast (Latitude, Longitude):", bottom_right_coords,
-        "\n\tNumber of Images (X, Y):", n_images_x, 'x', n_images_y, '=',
-        n_images_x * n_images_y,
-        "\n\tImage Size", im_size, '(pixels)',
-        info=self)
+        # Calculate number of images fit in the map in a raster mission
+        map_size_m = np.abs(np.subtract(map_tlm[:2], map_brm[:2]))
+        n_images_x = 1 + int((map_size_m[0] - raster_wx)\
+                    /(((100 - overlap) / 100) * raster_wx))
+        n_images_y = 1 + int((map_size_m[1] - raster_wy)\
+                    /(((100 - overlap) / 100) * raster_wy))
 
+        # Calculate what has already been downloaded and what is left
         if last_img_name != -1:
+            # Extract coordinates and IDs from file name and convert to UTM
             last_x, last_y, lat_i, lon_j, _ = last_img_name[:-4].split('_')
             last_x, last_y = int(last_x), int(last_y)
             lat_i, lon_j = float(lat_i), float(lon_j)
@@ -293,19 +338,20 @@ class GoogleMap(VBN, ImageData):
 
             # last x and y start from 0
             if [last_x + 1, last_y + 1] == [n_images_x, n_images_y]:
-                pretty('All data downloaded.', info=self)
+                pretty('All data already downloaded.', info=self)
                 return
 
             pretty('Downloading the rest of Google Map images from \nx = ',
                    last_x + 1, ' / ', n_images_x,
                    '\ny = ', last_y + 1, ' / ', n_images_y, info=self)
+            # Determine the UTM coordinates and ID of the nex image to download
             if last_x < n_images_x - 1:
                 last_x += 1
-                x += raster_w * (100 - overlap) / 100
+                x += raster_wx * (100 - overlap) / 100
             else:
                 last_x = 0
                 last_y += 1
-                y -= raster_h * (100 - overlap) / 100
+                y -= raster_wy * (100 - overlap) / 100
                 x = x_orig
             lat_i, lon_j = geo_helper.utm2geo(x, y)
         else:
@@ -316,6 +362,9 @@ class GoogleMap(VBN, ImageData):
 
         i, j = last_x, last_y
 
+        if n_images_x * n_images_y > 5000:
+            print('Warning!\nNumber of images exceed the publishable limit. Read more at:')
+            print('https://about.google/brand-resource-center/products-and-services/geo-guidelines/#required-attribution/')
         data_helper.check_folder(self.data_dir / 'images')
 
         response = input("Do you want to proceed? (y/yes): ").strip().lower()
@@ -328,7 +377,7 @@ class GoogleMap(VBN, ImageData):
                     while i < n_images_x:
                         if lat_i < bottom_right_coords[0] - 0.02 or lon_j > bottom_right_coords[1] + 0.02:
                             raise OutOfBounds(
-                                "Exceeding Bottom Right Coordinate limits; Bottom right coordinates:",
+                                "Exceeding BR Coordinate limits; BR coordinates:",
                                 bottom_right_coords,
                                 'Current coordinates:', lat_i, lon_j,
                                 'Indices:', i, j
@@ -348,63 +397,20 @@ class GoogleMap(VBN, ImageData):
                             zoom=raster_zoom,
                             size=im_size
                             )
-                        x += raster_w * (100 - overlap) / 100
+                        x += raster_wx * (100 - overlap) / 100
                         _, lon_j = geo_helper.utm2geo(x, y)
 
                         pbar.update()
                         i += 1
-                    y -= raster_h * (100 - overlap) / 100
+                    y -= raster_wy * (100 - overlap) / 100
                     x = x_orig
                     lat_i, lon_j = geo_helper.utm2geo(x, y)
         else:
             pretty("Not Proceeding the download. Continuing without the download...",
-                   self=info)
+                   info=self)
 
         print('\t Number of rows and columns:', i, j)
 
-    def cleanup_data(self, entropy_thr=2.1):
-        """
-        filter out low feature data using entropy if map_type is roadmap.
-        """
-        thr_q = self.meta_df['entropies'] >= entropy_thr
-
-        self.labels = self.meta_df[thr_q][self.labels.columns]
-        self.input_dir = list(self.meta_df[thr_q]['img_names'].apply(
-            self.add_parent_dir())
-                                )
-        print(self.labels.sample(5), len(self.input_dir))
-
-    def add_parent_dir(self):
-        def add_per_row(row):
-            return str(self.data_dir / self.data_info['x']  / Path(row))
-        return add_per_row
-
-    def preprocess_image(self, image):
-        """
-        todo: add preprocess for sat images too.
-        """
-
-        box = tf.constant([[0.1, 0, 0.9, 1]])  # Example float values
-
-        # Convert the float values to integer by multiplying with the image dimensions
-        image_shape = tf.cast(tf.shape(image), tf.float32)
-
-        # crop the google sign from the bottom
-        image = tf.image.crop_to_bounding_box(
-            image,
-            tf.cast(image_shape[0] * 0, dtype=tf.int32),
-            tf.cast(image_shape[1] * 0.1, dtype=tf.int32),
-            tf.cast(image_shape[0] * 1, dtype=tf.int32),
-            tf.cast(image_shape[1] * 0.9, dtype=tf.int32)
-        )
-
-        # resize to the defined shape
-        image = tf.image.resize(image, self.input_dim[0:2])
-
-        # equalize histogram if roadmap
-        image = preprocess.tf_equalize_histogram(image)
-
-        return image
 
     def cleanup_data(self, entropy_thr=2.1):
         """
@@ -418,12 +424,55 @@ class GoogleMap(VBN, ImageData):
                               )
         print(self.labels.sample(5), len(self.input_dir))
 
+
+    def preprocess_image(self, image, margin=20):
+        """
+        Preprocess an input image by cropping and resizing.
+        Parameters:
+            - image (tf.Tensor): Input image to be preprocessed as a TensorFlow tensor.
+            - margin (int, optional): Margin size used for cropping in percentage.
+                This should preferrably have the same value as in gen_raster_from_map method.
+                Default is 20
+        Returns:
+            - tf.Tensor: Preprocessed image tensor after cropping and resizing.
+        Example:
+            - preprocess_image(image_tensor, 20) -> preprocessed_image_tensor
+        """
+
+        # Convert the float values to integer by multiplying with the image dimensions
+        image_shape = tf.cast(tf.shape(image), tf.float32)
+
+        # crop the google sign from the bottom
+        image = tf.image.crop_to_bounding_box(
+            image,
+            tf.cast(image_shape[0] * 0, dtype=tf.int32),
+            tf.cast(image_shape[1] * margin/200, dtype=tf.int32),
+            tf.cast(image_shape[0] * 1, dtype=tf.int32),
+            tf.cast(image_shape[1] * 1-margin/200, dtype=tf.int32)
+        )
+
+        # resize to the desired shape
+        image = tf.image.resize(image, self.input_dim[0:2])
+
+        # equalize histogram if roadmap
+        # image = preprocess.tf_equalize_histogram(image)
+
+        return image
+
+
     def add_parent_dir(self):
+        '''
+            Managing the path in the metadata file
+        '''
         def add_per_row(row):
             return str(self.data_dir / self.data_types['x']  / Path(row))
         return add_per_row
 
+
     def imread(self, img_path):
+        '''
+            Read Tensorflow image
+        '''
         image_string = tf.io.read_file(str(img_path))
         image = tf.image.decode_jpeg(image_string, channels=1)
         image = tf.image.convert_image_dtype(image, tf.uint8)

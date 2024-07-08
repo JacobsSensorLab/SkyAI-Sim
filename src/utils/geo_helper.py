@@ -228,9 +228,9 @@ def find_overlap(coords_a: tuple, coords_b: tuple) -> int:
     """Calculates the percentage of overlap between two rectangles.
     Parameters:
         - coords_a (tuple): Coordinates of the first rectangle in the format
-                            (top left lat, top left lon, buttom right lat, bottom right lon).
+                            (top left lat, top left lon, bottom right lat, bottom right lon).
         - coords_b (tuple): Coordinates of the second rectangle in the format
-                            (top left lat, top left lon, buttom right lat, bottom right lon).
+                            (top left lat, top left lon, bottom right lat, bottom right lon).
     Returns:
         - overlap_percentage (int): Percentage of overlap between the two rectangles.
     Processing Logic:
@@ -273,7 +273,7 @@ def geo_calcs(data):
     """
     data_min = np.min(data, axis=0)
     data_max = np.max(data, axis=0)
-
+    print('[INFO] Analyzing downloaded data.')
     print('Minimum:\n', data_min
                 , '\nMaximum:\n', data_max)
 
@@ -459,5 +459,6 @@ def get_map_dim_m(fov_d, agl_f, aspect_ratio):
     d_m = 2 * agl_m * np.tan(np.radians(fov_d/2))
 
     # Calculate width and height in meters from the diagonal
-    return np.asanyarray(d_m * np.sin(np.arctan(aspect_ratio)),
-            d_m * np.cos(np.arctan(aspect_ratio))).tolist()
+    return (d_m * np.sin(np.arctan(aspect_ratio)),
+            d_m * np.cos(np.arctan(aspect_ratio)),
+            agl_m)

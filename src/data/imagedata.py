@@ -69,7 +69,7 @@ class ImageData(ABC):
         """
         pretty(
             'Number of images in the path:',
-            len(self.input_dim),
+            len(self.input_dir),
             info=self
             )
         self.input_dir = natsorted(self.input_dir)
