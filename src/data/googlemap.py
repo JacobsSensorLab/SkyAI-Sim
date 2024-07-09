@@ -4,6 +4,7 @@
     author: spdkh
     date: June 2023, JacobsSensorLab
 """
+from curses import meta
 import os
 import glob
 from pathlib import Path
@@ -169,6 +170,7 @@ class GoogleMap(VBN, ImageData):
                'TL = Top Left, BR = Bottom Right\n',
                self.log.to_string(), info=self)
 
+        self.log.to_csv(self.data_dir / 'log_before_download.csv')
         map_name = "map_" + '_'.join(
             list(map(str, self.args.coords))
         ) + ".jpg"
@@ -201,8 +203,7 @@ class GoogleMap(VBN, ImageData):
             self.complete_download()
 
         super().config()
-        self.org_out_min, self.org_out_max =\
-              geo_helper.geo_calcs(self.labels)
+
         self.cleanup_data()
 
     def complete_download(self):
@@ -211,7 +212,7 @@ class GoogleMap(VBN, ImageData):
         """
         sorted_imgs = natsorted(
             glob.glob(
-                os.path.join(self.data_dir / 'images', "*.jpg")
+                os.path.join(self.data_dir / self.data_info['x'], "*.jpg")
             ),
             reverse=True
         )
@@ -240,18 +241,8 @@ class GoogleMap(VBN, ImageData):
                 meta_data,
                 columns=['img_names', 'columns', 'row', 'Lat', 'Lon', 'Alt']
             )
-            #todo: calc entropy for the same map type
-            #todo: apply cleaning based on roadmap data if available in data cleaning func
-            road_dir = self.data_dir
-            if self.map_type != 'roadmap':
-                road_folder_name = self.data_dir.name.replace(
-                    self.map_type, 'roadmap'
-                )
-                road_dir = self.data_dir.parents[0] / road_folder_name
-            road_dir = road_dir / self.data_info['x']
-
             self.meta_df['entropies'] = self.meta_df.apply(
-                self.calc_entropy(road_dir), axis=1
+                self.calc_entropy(self.data_dir / self.data_info['x']), axis=1
             )
             self.meta_df.to_csv(self.data_dir / 'meta_data.csv')
 
@@ -365,7 +356,7 @@ class GoogleMap(VBN, ImageData):
         if n_images_x * n_images_y > 5000:
             print('Warning!\nNumber of images exceed the publishable limit. Read more at:')
             print('https://about.google/brand-resource-center/products-and-services/geo-guidelines/#required-attribution/')
-        data_helper.check_folder(self.data_dir / 'images')
+        data_helper.check_folder(self.data_dir / self.data_info['x'])
 
         response = input("Do you want to proceed? (y/yes): ").strip().lower()
         if response in ["y", "yes"]:
@@ -389,7 +380,7 @@ class GoogleMap(VBN, ImageData):
                                 + '_' + str(lon_j) \
                                 + '_' + str(raster_zoom) + '.jpg'
 
-                        output_dir = self.data_dir / 'images' / out_name
+                        output_dir = self.data_dir / self.data_info['x'] / out_name
                         geo_helper.get_static_map_image(
                             output_dir,
                             [lat_i, lon_j],
@@ -416,13 +407,31 @@ class GoogleMap(VBN, ImageData):
         """
         filter out unused data using entropy if map type is roadmap.
         """
-        thr_q = self.meta_df['entropies'] >= entropy_thr
+        road_dir = self.data_dir
+        meta_df = self.meta_df
+        if self.map_type != 'roadmap':
+            road_folder_name = self.data_dir.name.replace(
+                self.map_type, 'roadmap'
+            )
+            road_dir = self.data_dir.parents[0] / road_folder_name
+            road_dir = road_dir / 'meta_data.csv'
+            print(road_dir)
+            if os.path.exists(road_dir):
+                meta_df = pd.read_csv(road_dir)
+                print('Roadmap data available. Cleaning up based on roadmap entropies...')
+            else:
+                print('Warning! roadmap meta data file is not found.')
+                print('Using self meta data file to cleanup data. (Not recommended)')
+
+        thr_q = meta_df['entropies'] >= entropy_thr
 
         self.labels = self.meta_df[thr_q][self.labels.columns]
         self.input_dir = list(self.meta_df[thr_q]['img_names'].apply(
             self.add_parent_dir())
-                              )
-        print(self.labels.sample(5), len(self.input_dir))
+                            )
+        pretty('Cleanedup Data from threshold', entropy_thr,
+            '\n', self.labels.sample(5),
+            '\nNumber of Samples:', len(self.input_dir), info=self)
 
 
     def preprocess_image(self, image, margin=20):
@@ -474,7 +483,7 @@ class GoogleMap(VBN, ImageData):
             Read Tensorflow image
         '''
         image_string = tf.io.read_file(str(img_path))
-        image = tf.image.decode_jpeg(image_string, channels=1)
+        image = tf.image.decode_jpeg(image_string, channels=3)
         image = tf.image.convert_image_dtype(image, tf.uint8)
 
         return image

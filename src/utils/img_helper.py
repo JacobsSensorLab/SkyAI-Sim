@@ -43,6 +43,7 @@ def choose_random_images(
         - Uses given seed for random selection.
 
     """
+
     np.random.seed(seed)
     rand_samples = np.random.choice(len(imgs_paths),
                                     n_imgs, replace=False)
@@ -85,12 +86,18 @@ def plot_multy(
         - Saves the plotted images in the specified output directory.
         - Closes all figures to avoid memory leak.
         """
+    output_dir = str(output_dir)
     _, ax = plt.subplots(nrows=rows, ncols=cols,
                         figsize=(cols * 4,rows * 4),
                         subplot_kw=dict(xticks=[], yticks=[]))
+
+    # Adjust layout to add space on the left for the title
+    plt.subplots_adjust(left=0.2)
+
     if rows == 1:
         ax = np.expand_dims(ax, 0)
 
+    print(len(imgs[0].shape))
     cmap = 'gray' if len(imgs[0].shape) == 2 else None
     # iterate over each row and column in the grid and display an image
     # The images to be displayed are accessed from the variable x
@@ -110,8 +117,8 @@ def plot_multy(
                 va='center', ha='center', rotation=90, fontsize=16)
 
     # show the figure
-    plt.show()
     plt.savefig(output_dir)  # Save sample results
+    plt.show()
     plt.close("all")  # Close figures to avoid memory leak
 
 

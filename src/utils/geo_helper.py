@@ -48,7 +48,7 @@ def get_static_map_image(
     except ModuleNotFoundError:
         print('Warning: hidden_file.py is not available.')
         return
-    base_url = "https://earthengine.googleapis.com/v1/projects/ee-sdjkhkosh/assets/YOUR_ASSET_ID"
+    base_url = "https://maps.googleapis.com/maps/api/staticmap"
     params = {
         "center": f"{coords[0]},{coords[1]}",
         "zoom": zoom,
