@@ -8,8 +8,7 @@ import os
 import argparse
 import json
 
-import datetime
-import pytz
+from src.utils.io_helper import pretty
 
 
 def parse_args():
@@ -107,5 +106,6 @@ def update_args_with_json(json_file):
             print(f"Error loading JSON file: {e}")
             return {}
     else:
-        print(f"Warning! Default file '{json_file}' not found.")
+        pretty("Default file" ,json_file, "not found.",
+               info='Warning!', color='\033[38;5;208m')
         return {}

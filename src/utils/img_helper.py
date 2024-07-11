@@ -7,9 +7,8 @@
 from typing import List, Tuple, Dict
 import matplotlib.pyplot as plt
 import numpy as np
-import tensorflow as tf
 from PIL import Image
-from tqdm import tqdm
+from sklearn.preprocessing import MinMaxScaler as Scaler
 
 from src.utils import consts, geo_helper
 
@@ -122,160 +121,6 @@ def plot_multy(
     plt.close("all")  # Close figures to avoid memory leak
 
 
-def make_pairs(
-    data, mode: str, overlap=100, return_overlap=False
-    ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Function:
-        Make pairs based on the amount of overlap in one or two dataset/s
-        images with location overlap of above overlap% is positive (1)
-        images with location overlap of below min(100-overlap, overlap)% is negative (0)
-        This is a specific task for the siamese network pairing.
-    Parameters:
-        - data (tuple | obj): A tuple of objects or and object
-            containing data information.
-        - mode (str): A string indicating the mode of the data,
-            either of the following ['train', 'val', 'test']
-        - overlap (int): Desired overlap percentage,
-            Default is 100.
-        - return_overlap (bool):
-            Whether to make the label to be the overlap amount
-            rather than 0 or 1
-    Returns:
-        - pair_images (np.array): A 2-tuple of image pairs.
-        - pair_labels (np.array):
-            A 2-tuple of labels for the image pairs
-            if return overlap is enabled: overlap percentage
-            o.w. (0 or 1) for each pair.
-    Processing Logic:
-        - Set random seed using data1's seed.
-        - Retrieve images and labels from data1 and data2.
-        - Calculate bounding boxes for labels.
-        - Loop through all images.
-        - Randomly select an image with the same class label.
-        - Calculate bounding boxes for labels.
-        - Check if bounding boxes overlap.
-        - If not, repeat until they do.
-        - Add positive and negative image pairs and labels to lists.
-        - Return a 2-tuple of image pairs and labels.
-
-    Cautious: Overlapping training dataset might lead to training pollution
-    todo: mix it with make_triplets function
-    """
-    if isinstance(data, tuple):
-        data1, data2 = data
-    else:
-        data1 = data2 = data
-
-    np.random.seed(data1.args.seed)
-    images = data1.data_info['x' + mode]
-    labels = np.asarray(data1.data_info['y' + mode])
-
-    images2 = data2.data_info['x' + mode]
-    labels2 = np.asarray(data2.data_info['y' + mode])
-
-    ### extract images and labels that are present in both datasets
-    # and raise an error if there is not much present in both
-    if isinstance(data, tuple):
-        if not np.array_equal(labels, labels2):
-            idx_a = labels == labels2
-            images = images[idx_a]
-            images2 = images2[idx_a]
-            labels = labels[idx_a]
-
-        if len(labels) < 0.9 * np.max(len(labels2), len(labels)):
-            raise ValueError("Data misalignment. Losing more than 10% of the original data.")
-
-    cols = data1.data_info['ytrain'].columns
-    pair_images = []
-    pair_labels = []
-
-    # loop over all images
-    with tqdm(position=0, leave=True, total=len(images)) as pbar:
-        for idx_a, cur_img in enumerate(images):
-            # take the actual coordinates of the current image location
-            label = norm_helper.norm_undo(labels[idx_a],
-                                          data1.org_out_max[cols],
-                                          data1.org_out_min[cols])
-
-            # calculate top left and bottom right coordinates for current image
-            coords = geo_helper.calc_bbox_api(
-                label[0: 2],
-                label[2],
-                data1.input_dim
-            )
-
-            # Find a random sample coordinates
-            coords_b = find_random_sample(
-                            range(len(labels)),
-                            labels, data2
-            )
-
-            ### binarize based on overlap, if binary labels are requested
-            if not return_overlap:
-                overlap_flag = geo_helper.overlapped(coords,
-                                            coords_b,
-                                            overlap)
-                ## if current image is overlapped with the random image,
-                # or there are two datasets we want to fix the positive label,
-                # then search for the negative label
-                if overlap_flag or isinstance(data, tuple):
-                    # if there are two dataset,
-                    # the positive label is shared between the two datasets
-                    if isinstance(data, tuple):
-                        pos_img = images2[idx_a]
-                    # if there is only one dataset,
-                    # the positive label is the randomly selected label with overlap
-                    else:
-                        pos_img = images2[idx_b]
-
-                    ## look to find random coordinates with no overlap
-                    # for the negative label
-                    while geo_helper.overlapped(
-                        coords, coords_b,
-                        overlap=np.min(100-overlap, overlap)
-                    ):
-                        idx_b, label_b, coords_b = find_random_sample(
-                            range(len(labels)),
-                            labels, data2
-                        )
-
-                    neg_img = images2[idx_b]
-                ## if current image is overlapped with the random image,
-                # we can fix the negative label,
-                # then search for the positive among the ones with overlap
-                else:
-                    neg_img = images2[idx_b]
-
-                    while not geo_helper.overlapped(coords,
-                                                coords_b,
-                                                overlap=overlap):
-                        idx_b, label_b, coords_b = find_random_sample(
-                            range(len(labels)),
-                            labels, data2
-                        )
-                        idx_b = np.random.choice(range(len(images)))
-
-                    pos_img = images2[idx_b]
-
-                # prepare a positive pair of images and update our lists
-                pair_images.append([cur_img, pos_img])
-                pair_labels.append([1])
-
-                # prepare a negative pair of images and update our lists
-                pair_images.append([cur_img, neg_img])
-                pair_labels.append([0])
-            else:
-                pair_images.append([cur_img, images2[label_b]])
-                pair_labels.append(
-                    [geo_helper.find_overlap(coords,
-                                             coords_b)]
-                )
-                pbar.update()
-        # return a 2-tuple of our image pairs and labels
-    return np.array(pair_images), np.array(pair_labels)
-
-
 def find_random_sample(
     n_images: int, labels: np.ndarray, data: object
     ) -> Tuple[int, np.ndarray, np.ndarray]:
@@ -298,10 +143,8 @@ def find_random_sample(
     """
     idx = np.random.choice(n_images)
     cols = data.data_info['ytrain'].columns
-    label = norm_helper.norm_undo(
-        labels[idx],
-        data.org_out_max[cols],
-        data.org_out_min[cols]
+    label = data.scaler.inverse_transform(
+        labels.loc[idx, cols]
     )
     coords = geo_helper.calc_bbox_api(
         label[:2],
@@ -310,155 +153,6 @@ def find_random_sample(
     )
     return idx, label, coords
 
-
-def make_triplets(data1, data2, mode):
-    """
-        Make triplets based on the images from two different datasets
-        the first data indicates the anchor image,
-        the image from the same location but different dataset is positive
-        the image from a different location and a different dataset is negative
-
-        params:
-            data1: data object
-            data2: data object
-            mode: either of the following ['train', 'val', 'test']
-
-        returns:
-            a keras dataset, eache element includes three images:
-            0. anchor
-            1. positive
-            2. negative
-    """
-    np.random.seed(data1.args.seed)
-    images = data1.data_info['x' + mode]
-    labels = np.asarray(data1.data_info['y' + mode])
-    cols = data1.data_info['y' + mode].columns
-
-    images2 = data2.data_info['x' + mode]
-    labels2 = np.asarray(data2.data_info['y' + mode])
-
-    ### extract images and labels that are present in both datasets
-    # and raise an error if there is not much present in both
-    if not np.array_equal(labels, labels2):
-        idx_a = labels == labels2
-        images = images[idx_a]
-        images2 = images2[idx_a]
-        labels = labels[idx_a]
-
-    if len(labels) < 0.9 * np.max(len(labels2), len(labels)):
-        raise ValueError("Data misalignment. Losing more than 10% of the original data.")
-
-    pos_imgs = []
-    neg_imgs = []
-    # loop over all images
-    with tqdm(position=0, leave=True, total=len(images)) as pbar:
-        for idx_a, _ in enumerate(images):
-            # grab the current image and label belonging to the current iteration
-            label = norm_helper.norm_undo(labels[idx_a],
-                                            data1.org_out_max[cols],
-                                            data1.org_out_min[cols])
-
-            pos_img = images2[idx_a]
-            pos_imgs.append(pos_img)
-            coords = geo_helper.calc_bbox_api(label[0: 2],
-                                                        label[2],
-                                                        data1.input_dim)
-            idx_b, _, coords_b = find_random_sample(
-                            range(len(labels)),
-                            labels, data2
-                        )
-
-            while geo_helper.overlapped(coords, coords_b, 0.2):
-                idx_b, _, coords_b = find_random_sample(
-                            range(len(labels)),
-                            labels, data2
-                        )
-            # grab the indices for each of the class labels *not* equal to
-            # the current label and randomly pick an image corresponding
-            # to a label *not* equal to the current label
-            neg_img = images2[idx_b]
-            neg_imgs.append(neg_img)
-
-            pbar.update()
-    # return a 2-tuple of our image pairs and labels
-
-    images = tf.data.Dataset.from_tensor_slices(images)
-    pos_imgs = tf.data.Dataset.from_tensor_slices(pos_imgs)
-    neg_imgs = tf.data.Dataset.from_tensor_slices(neg_imgs)
-    dataset = tf.data.Dataset.zip((images,
-                                    pos_imgs,
-                                    neg_imgs))
-
-    return dataset
-
-
-def img_batch_load(
-    data,
-    imgs_paths: List[str],
-    batch_size: int,
-    iteration: int = 0
-) -> Dict[str, np.ndarray]:
-    """
-    Parameters
-    ----------
-    path: str
-
-    iteration: int
-        batch iteration id to load the right batch
-        pass batch_iterator(.) directly if loading batches
-        this updates the batch id,
-        then passes the updated value
-        can leave 0 if
-    batch_size: int
-        if not loading batches,
-        keep it the same as number of all samples loading
-
-    Returns: array
-        loaded batch of raw images
-    -------
-    """
-    imgs_paths.sort()
-
-    iteration = iteration * batch_size
-    imgs_paths = imgs_paths[iteration:batch_size + iteration]
-
-    image_batch = {}
-    for i, path in enumerate(imgs_paths):
-        cur_img = data.imread(imgs_paths[i])
-        image_batch[path] = cur_img.copy()
-    return image_batch
-
-
-def pair_batch_load(data, pairs, batch_size, iteration):
-    """
-        Parameters
-        ----------
-        pairs: tuple of two str paths
-
-        iteration: int
-            batch iteration id to load the right batch
-            pass batch_iterator(.) directly if loading batches
-            this updates the batch id,
-            then passes the updated value
-            can leave 0 if
-        batch_size: int
-            if not loading batches,
-            keep it the same as number of all samples loading
-
-        Returns: array
-            loaded batch of raw images
-        -------
-        """
-    iteration = iteration * batch_size
-    image_batch = []
-    for i in range(batch_size):
-        pair = pairs[i + iteration]
-        image_batch.append([])
-        # pretty('Empty batch:', image_batch[i])
-        for j in range(2):
-            img = data.imread(pair[j])
-            image_batch[i].append(img)
-    return image_batch
 
 def imread(img_path, shape=consts.IMG_SIZE[:2]):
     """
@@ -478,8 +172,9 @@ def imread(img_path, shape=consts.IMG_SIZE[:2]):
             img = img.convert("RGB")
         print(np.shape(img))
         img = img.resize(shape)
-        img = norm_helper.min_max_norm(np.asarray(img))
+        img = Scaler().fit_transform(np.asarray(img))
     return img
+
 
 def save_sample_data(data,
                     sample_label,

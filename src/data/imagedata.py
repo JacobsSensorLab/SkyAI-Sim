@@ -9,8 +9,7 @@ from abc import ABC, abstractmethod
 from ast import Raise
 from natsort import natsorted
 
-from src.utils import consts
-from src.utils.beauty import pretty
+from src.utils.io_helper import pretty
 
 class ImageData(ABC):
     """

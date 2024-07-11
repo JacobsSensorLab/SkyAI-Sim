@@ -10,9 +10,6 @@ import glob
 import geopy.point
 from PIL.ExifTags import TAGS, GPSTAGS
 from PIL import Image
-from matplotlib import pyplot as plt
-
-from src.utils.beauty import pretty
 
 
 def import_module(module, class_name, *args, **kwargs):
@@ -118,33 +115,49 @@ def metadata_read(img_path):
     return None
 
 
-def visualize_predict(img, predicted_info, output_dir, gt_info='NA', error='NA'):
-    """
-        Visualize predicted images
-    :param img:
-    :param predicted_info:
-    :param output_dir:
-    :param gt_info:
-    :param error:
-    :return:
-    """
-    plt.figure()
-    # figures equal to the number of z patches in columns
+def pretty(*objects, sep=' ', end='\n', info=None, color="\033[93m"):
+    print('\033[40m') # Set background to black
+    reset = "\033[0m"  # Reset text color to default
 
-    plt.title('original lat/long = ' \
-              + gt_info \
-              + '\nPredicted lat/long =' \
-              + predicted_info)
+    try:
+        terminal_size = os.get_terminal_size().columns
+    except:
+        terminal_size = 75
 
-    plt.imshow(img)
-    # plt.show()
+    block_len = min(terminal_size,
+                    max(
+                        20 + max([len(i) for i in str(objects).split('\\n')]),
+                        20 + len(str(info))
+                        )
+                    )
+    header = 'Info:'
+    print('-'*block_len)
+    if info is not None:
+         header += str(info)
 
-    plt.gca().axes.yaxis.set_ticklabels([])
-    plt.gca().axes.xaxis.set_ticklabels([])
-    plt.gca().axes.yaxis.set_ticks([])
-    plt.gca().axes.xaxis.set_ticks([])
-    plt.xlabel('\nError ='
-               + error)
+    print(header.center(block_len))
 
-    plt.savefig(output_dir)  # Save sample results
-    plt.close("all")  # Close figures to avoid memory leak
+    print('-'*block_len)
+
+    print(color)
+
+    print(*objects, sep=sep, end=end)
+    print(reset + '\033[40m')
+
+    print('-'*block_len)
+    print(reset)
+
+
+def pretty_args(args):
+    text = ''
+    index = 0
+    for key, value in vars(args).items():
+        if value is not None:
+            index += 1
+            text += "{:<20} = {:<10}".format(str(key), str(value))
+            text += " " * 5 + '|' + " " * 5
+
+            if index % 3 == 0:
+                text += "\n"
+
+    return text.replace(' ', '.')

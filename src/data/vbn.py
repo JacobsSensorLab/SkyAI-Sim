@@ -15,8 +15,8 @@ from keras import layers
 from keras.models import Sequential
 import tensorflow as tf
 
-from src.utils import consts, data_helper, geo_helper, img_helper
-from src.utils.beauty import pretty
+from src.utils import consts, io_helper, geo_helper, img_helper
+from src.utils.io_helper import pretty
 from src.data.imagedata import ImageData
 
 class VBN(ImageData):
@@ -67,11 +67,11 @@ class VBN(ImageData):
         self.input_dim = self.args.img_size
         self.output_dim = 3
 
-        self.input_dir = data_helper.find_files(self.data_dir /
+        self.input_dir = io_helper.find_files(self.data_dir /
                                                  self.data_types['x'],
                                                  'jpg')
 
-        self.output_dir = data_helper.find_files(self.data_dir, 'txt')
+        self.output_dir = io_helper.find_files(self.data_dir, 'txt')
         self.img_augmentation = Sequential(
         [
             layers.RandomRotation(factor=0.25, fill_mode='reflect'),
@@ -125,7 +125,7 @@ class VBN(ImageData):
 
         pretty('Saving sample data...')
         with tqdm(position=0, leave=True, total=n_sample_imgs * len(self.modes)) as pbar:
-            data_helper.check_folder(consts.SAMPLE_DIR)
+            io_helper.check_folder(consts.SAMPLE_DIR)
             for mode in self.modes:
                 self.dataset[mode] = self.keras_dataset(mode)
 

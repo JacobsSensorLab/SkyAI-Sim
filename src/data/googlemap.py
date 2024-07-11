@@ -4,11 +4,9 @@
     author: spdkh
     date: June 2023, JacobsSensorLab
 """
-from curses import meta
 import os
 import glob
 from pathlib import Path
-import geopy
 from matplotlib.streamplot import OutOfBounds
 from tqdm import tqdm
 import numpy as np
@@ -17,8 +15,8 @@ from natsort import natsorted
 import skimage.measure
 import tensorflow as tf
 
-from src.utils import data_helper, geo_helper, preprocess
-from src.utils.beauty import pretty
+from src.utils import io_helper, geo_helper, preprocess
+from src.utils.io_helper import pretty
 from src.data.vbn import VBN
 from src.data.imagedata import ImageData
 
@@ -78,10 +76,9 @@ class GoogleMap(VBN, ImageData):
             else kwargs['args'].data_dir
 
         # Add dataset information to the name of the dataset folder
-        data_dir += self.map_type
-        data_dir += '_' + str(self.overlap)
-        data_dir += '_' + str(self.args.coords)[1:-1].replace(', ', '_')
-        self.data_dir = Path(data_dir)
+        data_folder_name = self.map_type + '_' + str(self.overlap)
+        data_folder_name += '_' + str(self.args.coords)[1:-1].replace(', ', '_')
+        self.data_dir = Path(data_dir) / data_folder_name
 
         self.log['1 Image Size (m)'].iloc[:-1] =\
             np.round(
@@ -97,14 +94,14 @@ class GoogleMap(VBN, ImageData):
         self.log['TL'].iloc[:2] = self.args.coords[:2]
         self.log['BR'].iloc[:2] = self.args.coords[2:4]
 
-        data_helper.check_folder(self.data_dir)
+        io_helper.check_folder(self.data_dir)
 
         self.check_data()
 
-        self.input_dir = data_helper.find_files(self.data_dir /
+        self.input_dir = io_helper.find_files(self.data_dir /
                                                  self.data_info['x'],
                                                  'jpg')
-        data_helper.check_folder(self.data_dir / self.data_info['x'])
+        io_helper.check_folder(self.data_dir / self.data_info['x'])
 
     def check_data(self):
         """
@@ -121,8 +118,6 @@ class GoogleMap(VBN, ImageData):
         map_zoom, map_size =\
             geo_helper.get_zoom_from_bounds(top_left, bottom_right)
         self.log['Map Size (pixel/zoom)'].iloc[:-1] = map_size + [map_zoom]
-
-        x_width_m, y_width_m, _, _ = self.log['1 Image Size (m)']
 
         center_lat = (top_left[0] + bottom_right[0]) / 2
         center_lon = (top_left[1] + bottom_right[1]) / 2
@@ -164,7 +159,6 @@ class GoogleMap(VBN, ImageData):
         self.log['# Raster Images'].iloc[-1] =\
             self.log['# Raster Images'].iloc[0] *\
                 self.log['# Raster Images'].iloc[1]
-
 
         pretty('[INFO] Data detailed values before download.\n',
                'TL = Top Left, BR = Bottom Right\n',
@@ -354,11 +348,16 @@ class GoogleMap(VBN, ImageData):
         i, j = last_x, last_y
 
         if n_images_x * n_images_y > 5000:
-            print('Warning!\nNumber of images exceed the publishable limit. Read more at:')
-            print('https://about.google/brand-resource-center/products-and-services/geo-guidelines/#required-attribution/')
-        data_helper.check_folder(self.data_dir / self.data_info['x'])
+            pretty('Number of images exceed the publishable limit. Read more at:',
+                   '\nhttps://about.google/brand-resource-center/products-and-services/geo-guidelines/#required-attribution/',
+                   info='Warning!',
+                   color='\033[38;5;208m')
+        io_helper.check_folder(self.data_dir / self.data_info['x'])
 
-        response = input("Do you want to proceed? (y/yes): ").strip().lower()
+        pretty('Do you want to proceed? (y/yes):', end=' ',
+                   info='Attention!',
+                   color='\033[31m')
+        response = input().strip().lower()
         if response in ["y", "yes"]:
             print("Confirmed.")
             with tqdm(position=0, leave=True, total=n_images_x*n_images_y) as pbar:
@@ -420,8 +419,10 @@ class GoogleMap(VBN, ImageData):
                 meta_df = pd.read_csv(road_dir)
                 print('Roadmap data available. Cleaning up based on roadmap entropies...')
             else:
-                print('Warning! roadmap meta data file is not found.')
-                print('Using self meta data file to cleanup data. (Not recommended)')
+                pretty('Roadmap meta data file is not found.',
+                        '\nUsing self meta data file to cleanup data. (Not recommended)',
+                        info='Warning!',
+                        color='\033[38;5;208m')
 
         thr_q = meta_df['entropies'] >= entropy_thr
 

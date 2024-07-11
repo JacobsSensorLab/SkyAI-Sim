@@ -15,6 +15,7 @@ import tensorflow as tf
 import requests
 
 from src.utils import consts
+from src.utils.io_helper import pretty
 
 
 def get_static_map_image(
@@ -46,7 +47,8 @@ def get_static_map_image(
         if api_key is None:
             from src.hidden_file import api_key
     except ModuleNotFoundError:
-        print('Warning: hidden_file.py is not available.')
+        pretty('hidden_file.py is not available.',
+               info='Warning!', color='\033[38;5;208m')
         return
     base_url = "https://maps.googleapis.com/maps/api/staticmap"
     params = {
@@ -338,15 +340,15 @@ def meters2geo(
 
 
 @tf.function
-def geodist_loss_params(y_max, y_min):
+def geodist_loss_params(data_obj):
     """
         Loss funcion to apply haversine distance difference between
         unnormalized inputs.
         todo: update with scaler
     """
     def geodist_loss(y_pred, y_true):
-        y_pred = norm_helper.norm_undo(y_pred, y_max, y_min)
-        y_true = norm_helper.norm_undo(y_true, y_max, y_min)
+        y_pred = data_obj.scaler.inverse_transform(y_pred)
+        y_true = data_obj.scaler.inverse_transform(y_true)
 
         lat1, lon1 = tf.unstack(y_pred, axis=-1)
         lat2, lon2 = tf.unstack(y_true, axis=-1)
