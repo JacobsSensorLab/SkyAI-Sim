@@ -62,7 +62,7 @@ class GoogleMap(VBN, ImageData):
                        '1 Image Size (m)',
                        '1 Image Size (pixel/zoom)',
                        ])
-        self.data_info = {'x': 'images'}
+        self.data_info = {'x': 'raster_images'}
 
         self.input_dim = kwargs['args'].img_size
 
@@ -77,14 +77,13 @@ class GoogleMap(VBN, ImageData):
 
         # Add dataset information to the name of the dataset folder
         data_folder_name = self.map_type + '_' + str(self.overlap)
-        data_folder_name += '_' + str(self.args.coords)[1:-1].replace(', ', '_')
         self.data_dir = Path(data_dir) / data_folder_name
 
         self.log['1 Image Size (m)'].iloc[:-1] =\
             np.round(
                 geo_helper.get_map_dim_m(
                 self.args.fov,
-                self.args.coords[4],
+                self.args.coords[-1],
                 self.args.aspect_ratio[0] / self.args.aspect_ratio[1]
                 ),
                 2)
@@ -101,7 +100,6 @@ class GoogleMap(VBN, ImageData):
         self.input_dir = io_helper.find_files(self.data_dir /
                                                  self.data_info['x'],
                                                  'jpg')
-        io_helper.check_folder(self.data_dir / self.data_info['x'])
 
     def check_data(self):
         """
@@ -114,11 +112,9 @@ class GoogleMap(VBN, ImageData):
         """
         top_left = self.args.coords[0], self.args.coords[1]
         bottom_right = self.args.coords[2], self.args.coords[3]
-
         map_zoom, map_size =\
             geo_helper.get_zoom_from_bounds(top_left, bottom_right)
         self.log['Map Size (pixel/zoom)'].iloc[:-1] = map_size + [map_zoom]
-
         center_lat = (top_left[0] + bottom_right[0]) / 2
         center_lon = (top_left[1] + bottom_right[1]) / 2
         self.log['Center'].iloc[:2] = center_lat, center_lon
@@ -167,7 +163,10 @@ class GoogleMap(VBN, ImageData):
         self.log.to_csv(self.data_dir / 'log_before_download.csv')
         map_name = "map_" + '_'.join(
             list(map(str, self.args.coords))
-        ) + ".jpg"
+            ) + '_' \
+                + str(self.args.fov) + '_' \
+                    + str(self.args.aspect_ratio[0]) + '_'\
+                        + str(self.args.aspect_ratio[1]) + ".jpg"
         if map_name not in os.listdir(self.data_dir):
             geo_helper.get_static_map_image(
                 self.data_dir / map_name,
@@ -194,11 +193,11 @@ class GoogleMap(VBN, ImageData):
         todo: more conditions for cleanup
         """
         if download_raster:
+            io_helper.check_folder(self.data_dir / self.data_info['x'])
             self.complete_download()
 
         super().config()
 
-        self.cleanup_data()
 
     def complete_download(self):
         """
@@ -218,6 +217,8 @@ class GoogleMap(VBN, ImageData):
                                 last_img_name=latest_image_name)
 
     def config_output(self):
+        io_helper.wait_for_files(self.data_dir / self.data_info['x'],
+                                 self.input_dir)
         if os.path.exists(self.data_dir / 'meta_data.csv'):
             pretty('Found the metadata file...',
                info=self)
@@ -226,10 +227,10 @@ class GoogleMap(VBN, ImageData):
             pretty('Generating the metadata file...',
                info=self)
             meta_data = []
-            meta_data = [[os.path.basename(path)] \
+            meta_data = [[os.path.basename(path_)] \
                 + list(map(
                     float,
-                    os.path.basename(path).split('.jpg')[0].split('_'))) for path in self.input_dir
+                    os.path.basename(path_).split('.jpg')[0].split('_'))) for path_ in self.input_dir
                 ]
             self.meta_df = pd.DataFrame(
                 meta_data,
@@ -257,7 +258,7 @@ class GoogleMap(VBN, ImageData):
                         bottom_right_coords: tuple,
                         overlap: int = 0,
                         last_img_name: str = -1,
-                        margin: int = 20):
+                        margin: int = 0):
 
         """
         Generate a raster of map images based on specified coordinates and other parameters.

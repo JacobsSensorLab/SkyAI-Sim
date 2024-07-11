@@ -26,8 +26,8 @@ def parse_args():
     # Define the arguments in a dictionary
     arguments = {
         'coords': {
-            'type': float, 'nargs': '+',
-            'default': [35.22, -90.07, 35.06, -89.73, 400],
+            'type': string_or_list_of_floats,
+            'default': '35.22_-90.07_35.06_-89.73_400',
             'help': 'Top left coords (lat, lon), bottom right coords, altitude ground level in feet'
         },
         'fov': {
@@ -109,3 +109,14 @@ def update_args_with_json(json_file):
         pretty("Default file" ,json_file, "not found.",
                info='Warning!', color='\033[38;5;208m')
         return {}
+
+    import argparse
+
+
+def string_or_list_of_floats(value):
+    # Try to parse the value as a list of floats
+    try:
+        return [float(x) for x in value.split('_')]
+    except ValueError:
+        # If parsing fails, return the value as a string
+        return value

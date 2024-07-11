@@ -6,6 +6,7 @@
 """
 import os
 import glob
+import time
 
 import geopy.point
 from PIL.ExifTags import TAGS, GPSTAGS
@@ -161,3 +162,21 @@ def pretty_args(args):
                 text += "\n"
 
     return text.replace(' ', '.')
+
+def wait_for_files(directory, expected_files, timeout=30):
+    """
+    Wait for expected files to appear in the directory.
+
+    :param directory: Directory to watch for files.
+    :param expected_files: List of filenames expected to appear.
+    :param timeout: Maximum time to wait for the files (in seconds).
+    """
+    start_time = time.time()
+
+    while True:
+        current_files = set(os.listdir(directory))
+        if set(expected_files).issubset(current_files):
+            break
+        if time.time() - start_time > timeout:
+            raise TimeoutError(f"Timeout: The expected files did not appear in {directory} within {timeout} seconds.")
+        time.sleep(1)  # Wait for a second before checking again

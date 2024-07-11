@@ -1,5 +1,5 @@
 {
-    "coords": [36.14342, -88.805411, 36.140815, -88.7696372, 400],
+    "coords": "dataset/Test/coords_list.txt",
     "seed": 2024,
     "data_dir": "dataset/Test"
 }

@@ -3,10 +3,13 @@
     load and configure the Google Map dataset
     © All rights reserved.
     author: spdkh
-    date: June 2024, JacobsSensorLab
+    date: July 2024, JacobsSensorLab
 """
+import pandas as pd
+import numpy as np
 from src.utils import consts
 from src.data.googlemap import GoogleMap
+from src.utils import geo_helper
 
 
 def main():
@@ -26,16 +29,24 @@ def main():
         - Set overlap to 0 if not specified.
     """
     args = consts.ARGS
+
+    coords_list = pd.read_csv(args.coords)
+
+    for coords in coords_list
+    bbox_m = geo_helper.get_map_dim_m(
+        args.coords[:2], args.coords[-1],
+        args.aspect_ratio[0]/args.aspect_ratio[1]
+        )
+    bbox = geo_helper.calc_bbox_m(args.coords[:2],
+                                  bbox_m)
+    args.coords = tuple(np.array(bbox).flatten()) + (args.coords[-1],)
     aerial_data = GoogleMap(
         args=args,
         map_type='satellite',
         data_dir=args.data_dir,
         overlap=args.overlap
         )
-    aerial_data.config(download_raster=True)
-
-    # Prepar the dataset for a keras DNN task
-    # augmented_data = aerial_data.config_dnn()
+    aerial_data.config(download_raster=False)
 
 
 if __name__ == '__main__':

@@ -198,6 +198,7 @@ def get_zoom_from_bounds(
     # The bigger width along x or y will be the img_size
     # The other width is adjusted based on aspect ratio
     # Determine zoom level
+    print(half_pw_x, half_pw_y)
     zoom = int(-math.log2(max(half_pw_x, half_pw_y) / img_size) - 1)
 
     # Calculate final image width and height based on zoom level
