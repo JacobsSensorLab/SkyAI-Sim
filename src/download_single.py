@@ -6,6 +6,7 @@
     date: July 2024, JacobsSensorLab
 """
 import numpy as np
+import pandas as pd
 from src.utils import consts
 from src.data.googlemap import GoogleMap
 from src.utils import geo_helper
@@ -29,20 +30,30 @@ def main():
     """
     args = consts.ARGS
 
+    # if coords argument was given as a file instead of the actual coordinates:
+    try:
+        args.coords = np.asanyarray(pd.read_csv(args.coords, dtype=float, sep=' '))[1]
+        print(args.coords)
+    except ValueError:
+        pass
+
     bbox_m = geo_helper.get_map_dim_m(
-        args.coords[:2], args.coords[-1],
+        args.fov, args.coords[-1],
         args.aspect_ratio[0]/args.aspect_ratio[1]
         )
     bbox = geo_helper.calc_bbox_m(args.coords[:2],
                                   bbox_m)
+    print(2)
     args.coords = tuple(np.array(bbox).flatten()) + (args.coords[-1],)
+    print(3)
     aerial_data = GoogleMap(
         args=args,
         map_type='satellite',
         data_dir=args.data_dir,
         overlap=args.overlap
         )
-    aerial_data.config(download_raster=False)
+    aerial_data.data_info['x'] = '.'
+    aerial_data.check_data(False)
 
 
 if __name__ == '__main__':

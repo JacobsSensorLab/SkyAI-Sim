@@ -95,13 +95,9 @@ class GoogleMap(VBN, ImageData):
 
         io_helper.check_folder(self.data_dir)
 
-        self.check_data()
+        self.input_dir = None
 
-        self.input_dir = io_helper.find_files(self.data_dir /
-                                                 self.data_info['x'],
-                                                 'jpg')
-
-    def check_data(self):
+    def check_data(self, download_raster):
         """
             Generate GoogleMap data from a given big picture map
             These calculations are theoretical measurements,
@@ -113,11 +109,17 @@ class GoogleMap(VBN, ImageData):
         top_left = self.args.coords[0], self.args.coords[1]
         bottom_right = self.args.coords[2], self.args.coords[3]
         map_zoom, map_size =\
-            geo_helper.get_zoom_from_bounds(top_left, bottom_right)
+            geo_helper.get_zoom_from_bounds(top_left,
+                                            bottom_right)
         self.log['Map Size (pixel/zoom)'].iloc[:-1] = map_size + [map_zoom]
         center_lat = (top_left[0] + bottom_right[0]) / 2
         center_lon = (top_left[1] + bottom_right[1]) / 2
         self.log['Center'].iloc[:2] = center_lat, center_lon
+
+        utm = geo_helper.get_utm_epsg((center_lat, center_lon))
+        if self.args.utm != utm:
+            self.args.utm = utm
+            pretty('Changing UTM Zone to', utm, info='Warning!')
         ## Convert geolocation of the raster corners to utm
         # TL point
         self.log['TL (UTM)'].iloc[:2] =\
@@ -126,15 +128,6 @@ class GoogleMap(VBN, ImageData):
         # TL point
         self.log['BR (UTM)'].iloc[:2] =\
             np.round(geo_helper.geo2utm(bottom_right[0], bottom_right[1]), 2)
-
-        ## Start Raster from TL of the map
-        # get coordinates of the corners
-        # of the top most left image in the raster mission
-        tl, br = geo_helper.meters2geo(
-            center=top_left,
-            img_size=self.log['1 Image Size (m)'].iloc[:2])
-        raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
-        self.log['1 Image Size (pixel/zoom)'].iloc[:-1] = im_size + [raster_zoom]
 
         ## Convert geolocation of the raster corners to utm
         # TL point
@@ -158,10 +151,10 @@ class GoogleMap(VBN, ImageData):
 
         pretty('[INFO] Data detailed values before download.\n',
                'TL = Top Left, BR = Bottom Right\n',
-               self.log.to_string(), info=self)
+               self.log.dropna(axis=1, how='all').to_string(), info=self)
 
         self.log.to_csv(self.data_dir / 'log_before_download.csv')
-        map_name = "map_" + '_'.join(
+        map_name = '_'.join(
             list(map(str, self.args.coords))
             ) + '_' \
                 + str(self.args.fov) + '_' \
@@ -192,10 +185,28 @@ class GoogleMap(VBN, ImageData):
 
         todo: more conditions for cleanup
         """
+
+        self.check_data(download_raster)
+        self.input_dir = io_helper.find_files(self.data_dir /
+                                                 self.data_info['x'],
+                                                 'jpg')
         if download_raster:
+            ## Start Raster from TL of the map
+            # get coordinates of the corners
+            # of the top most left image in the raster mission
+            tl, br = geo_helper.meters2geo(
+                center=self.args.coords[:2],
+                img_size=self.log['1 Image Size (m)'].iloc[:2])
+            raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
+            self.log['1 Image Size (pixel/zoom)'].iloc[:-1] = im_size + [raster_zoom]
+
             io_helper.check_folder(self.data_dir / self.data_info['x'])
             self.complete_download()
 
+        self.input_dir = io_helper.find_files(self.data_dir /
+                                                 self.data_info['x'],
+                                                 'jpg')
+        print(self.input_dir)
         super().config()
 
 
@@ -217,8 +228,8 @@ class GoogleMap(VBN, ImageData):
                                 last_img_name=latest_image_name)
 
     def config_output(self):
-        io_helper.wait_for_files(self.data_dir / self.data_info['x'],
-                                 self.input_dir)
+        io_helper.wait_for_files(self.input_dir)
+
         if os.path.exists(self.data_dir / 'meta_data.csv'):
             pretty('Found the metadata file...',
                info=self)
@@ -227,6 +238,7 @@ class GoogleMap(VBN, ImageData):
             pretty('Generating the metadata file...',
                info=self)
             meta_data = []
+
             meta_data = [[os.path.basename(path_)] \
                 + list(map(
                     float,
@@ -257,8 +269,7 @@ class GoogleMap(VBN, ImageData):
                         top_left_coords: tuple,
                         bottom_right_coords: tuple,
                         overlap: int = 0,
-                        last_img_name: str = -1,
-                        margin: int = 0):
+                        last_img_name: str = -10):
 
         """
         Generate a raster of map images based on specified coordinates and other parameters.
@@ -272,8 +283,6 @@ class GoogleMap(VBN, ImageData):
             - last_img_name (str, optional):
                 Name of the last downloaded image to resume the download process, if applicable.
                 Default is -1.
-            - margin (int, optional): Percentage of margin to add to the image for removing marks.
-                Default is 20.
         Returns:
             - None: The function does not return any value but downloads the raster images to the specified directory.
         Example:
@@ -291,8 +300,9 @@ class GoogleMap(VBN, ImageData):
         # of the top most left image in the raster mission
         tl, br = geo_helper.meters2geo(center=top_left_coords,
                                        img_size=self.log['1 Image Size (m)'][:2])
-        raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
-
+        # raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
+        im_size = np.asanyarray(self.log['1 Image Size (m)'][:2])
+        raster_zoom = self.log['1 Image Size (pixel/zoom)'][-1]
         # Convert coordinates to UTM
         tlm = geo_helper.geo2utm(tl[0], tl[1])
         brm = geo_helper.geo2utm(br[0], br[1])
@@ -305,7 +315,7 @@ class GoogleMap(VBN, ImageData):
         ## Add vertical margins
         # so that the google mark can be removed later after download
         # the same margin value has to be applied to the preprocess_image method
-        im_size[1] += int(im_size[1] * margin/100)
+        im_size[1] += int(im_size[1] * self.args.vmargin/100)
 
         # Calculate number of images fit in the map in a raster mission
         map_size_m = np.abs(np.subtract(map_tlm[:2], map_brm[:2]))
@@ -351,8 +361,7 @@ class GoogleMap(VBN, ImageData):
         if n_images_x * n_images_y > 5000:
             pretty('Number of images exceed the publishable limit. Read more at:',
                    '\nhttps://about.google/brand-resource-center/products-and-services/geo-guidelines/#required-attribution/',
-                   info='Warning!',
-                   color='\033[38;5;208m')
+                   info='Warning!')
         io_helper.check_folder(self.data_dir / self.data_info['x'])
 
         pretty('Do you want to proceed? (y/yes):', end=' ',
@@ -415,15 +424,13 @@ class GoogleMap(VBN, ImageData):
             )
             road_dir = self.data_dir.parents[0] / road_folder_name
             road_dir = road_dir / 'meta_data.csv'
-            print(road_dir)
             if os.path.exists(road_dir):
                 meta_df = pd.read_csv(road_dir)
                 print('Roadmap data available. Cleaning up based on roadmap entropies...')
             else:
                 pretty('Roadmap meta data file is not found.',
                         '\nUsing self meta data file to cleanup data. (Not recommended)',
-                        info='Warning!',
-                        color='\033[38;5;208m')
+                        info='Warning!')
 
         thr_q = meta_df['entropies'] >= entropy_thr
 
@@ -436,14 +443,11 @@ class GoogleMap(VBN, ImageData):
             '\nNumber of Samples:', len(self.input_dir), info=self)
 
 
-    def preprocess_image(self, image, margin=20):
+    def preprocess_image(self, image):
         """
         Preprocess an input image by cropping and resizing.
         Parameters:
             - image (tf.Tensor): Input image to be preprocessed as a TensorFlow tensor.
-            - margin (int, optional): Margin size used for cropping in percentage.
-                This should preferrably have the same value as in gen_raster_from_map method.
-                Default is 20
         Returns:
             - tf.Tensor: Preprocessed image tensor after cropping and resizing.
         Example:
@@ -457,9 +461,9 @@ class GoogleMap(VBN, ImageData):
         image = tf.image.crop_to_bounding_box(
             image,
             tf.cast(image_shape[0] * 0, dtype=tf.int32),
-            tf.cast(image_shape[1] * margin/200, dtype=tf.int32),
+            tf.cast(image_shape[1] * self.args.vmargin/200, dtype=tf.int32),
             tf.cast(image_shape[0] * 1, dtype=tf.int32),
-            tf.cast(image_shape[1] * 1-margin/200, dtype=tf.int32)
+            tf.cast(image_shape[1] * 1 - self.args.vmargin/200, dtype=tf.int32)
         )
 
         # resize to the desired shape

@@ -198,7 +198,6 @@ def get_zoom_from_bounds(
     # The bigger width along x or y will be the img_size
     # The other width is adjusted based on aspect ratio
     # Determine zoom level
-    print(half_pw_x, half_pw_y)
     zoom = int(-math.log2(max(half_pw_x, half_pw_y) / img_size) - 1)
 
     # Calculate final image width and height based on zoom level
@@ -444,7 +443,7 @@ def calc_bbox_m(center_coords, bbox_m):
     # Calculate half of the width and height in degrees
     half_x = bbox_m[0] / 2
     half_y = bbox_m[1] / 2
-
+    print(center_point, half_x, half_y)
     # Top-left corner (north-west)
     top_left = geodesic(meters=half_y).destination(center_point, 0)  # North
     top_left = geodesic(meters=half_x).destination(top_left, 270)  # West
@@ -456,8 +455,8 @@ def calc_bbox_m(center_coords, bbox_m):
     return (top_left.latitude, top_left.longitude), (bottom_right.latitude, bottom_right.longitude)
 
 def get_map_dim_m(fov_d, agl_f, aspect_ratio):
+    print(agl_f)
     agl_m = agl_f * 0.3048 # convert feet to meters
-
     # Calculate diagonal in meters in image using fov and ar
     d_m = 2 * agl_m * np.tan(np.radians(fov_d/2))
 
@@ -465,3 +464,15 @@ def get_map_dim_m(fov_d, agl_f, aspect_ratio):
     return (d_m * np.sin(np.arctan(aspect_ratio)),
             d_m * np.cos(np.arctan(aspect_ratio)),
             agl_m)
+
+
+def get_utm_epsg(coords):
+    lat, lon = coords
+    # Determine UTM zone number
+    zone_number = int((lon + 180) / 6) + 1
+    # Determine if it is in the Northern or Southern hemisphere
+    if lat >= 0:
+        epsg_code = f"EPSG:326{zone_number:02d}"  # Northern hemisphere
+    else:
+        epsg_code = f"EPSG:327{zone_number:02d}"  # Southern hemisphere
+    return epsg_code

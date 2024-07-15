@@ -27,13 +27,23 @@ def parse_args():
     arguments = {
         'coords': {
             'type': string_or_list_of_floats,
-            'default': '35.22_-90.07_35.06_-89.73_400',
-            'help': 'Top left coords (lat, lon), bottom right coords, altitude ground level in feet'
+            'default': "35.22_-90.07_35.06_-89.73_400",
+            'help':(
+            'Input can be either a file or a formatted string.\n'
+            '1. If a string is entered, it should refer to a file with the following format (lat lon agl(feet)):\n'
+            '   34.052235 -118.243683 100\n'
+            '   40.712776 -74.005974 50\n'
+            '   51.507351 -0.127758 200\n'
+            '   If a single download file is run, it will only take into account the first row.\n'
+            '2. The input can also be a string in the following format: TopLeftLat_TopLeftLon_BottoRightLat_BottomRightLon_AGL(f)\n'
+            '   e.g., "35.22_-90.07_35.06_-89.73_400"\n'
+            '   For single download, it will take the top-left coordinate as the central coordinates and discard the bottom-right.\n'
+            '3. Alternatively, input can be only the central coordinates and agl: "lat_lon_agl"\n')
         },
         'fov': {
             'type': float,
             'default': 78.8,
-            'help': 'Diagonal field of view of the camera.'
+            'help': 'Diagonal field of view of the camera in degrees.'
         },
         'aspect_ratio': {
             'type': float, 'nargs': '+',
@@ -53,22 +63,31 @@ def parse_args():
         'data_dir': {
             'type': str,
             'default': 'dataset/Memphis/',
-            'help': 'Directory name to save the generated images'
+            'help': 'Directory name to save the generated images.'
+        },
+        'vmargin':{
+            'type': int,
+            'default': 20,
+            'help': ('Vertical margin to capture an image with a size bigger than the inteded dimension,'
+                    'So that the Google sign and additional unwanted text can be removed later for post processing.'
+                    '(You cannot publish your data withouth those texts.)\n'
+                    'For more information check: '
+                    'https://about.google/brand-resource-center/products-and-services/geo-guidelines/#required-attribution/')
         },
         'img_size': {
             'type': int, 'nargs': '+',
             'default': [400, 400, 3],
-            'help': 'The size of batch'
+            'help': 'The desired image size to resize to after loading the original image.'
         },
         'batch_size': {
-            'type': int, 'choices': range(1, 128),
+            'type': int,
             'default': 8,
-            'help': 'The size of batch'
+            'help': 'The size of batch (only for machine learning tasks.)'
         },
         'seed': {
             'type': int,
             'default': 2024,
-            'help': 'Random seed value'
+            'help': 'Random seed value.'
         }
     }
     # Load defaults from JSON and overwrite initial defaults if present

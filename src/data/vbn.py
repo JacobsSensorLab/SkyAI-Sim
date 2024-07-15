@@ -4,7 +4,7 @@
     author: spdkh
     date: June 2023, JacobsSensorLab
 """
-
+import os
 from pathlib import Path
 from tqdm import tqdm
 import numpy as np
@@ -58,6 +58,8 @@ class VBN(ImageData):
             args
         """
         super().__init__(**kwargs)
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
         self.scaler = Scaler()
         self.data_types = {'x': 'JPG2', 'y': 'MetaData2'}
         data_dir = kwargs['data_dir'] if 'data_dir' in kwargs\

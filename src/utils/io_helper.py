@@ -117,6 +117,8 @@ def metadata_read(img_path):
 
 
 def pretty(*objects, sep=' ', end='\n', info=None, color="\033[93m"):
+    if info == 'Warning!':
+        color='\033[38;5;208m'
     print('\033[40m') # Set background to black
     reset = "\033[0m"  # Reset text color to default
 
@@ -163,20 +165,16 @@ def pretty_args(args):
 
     return text.replace(' ', '.')
 
-def wait_for_files(directory, expected_files, timeout=30):
+def wait_for_files(expected_files, timeout=2):
     """
     Wait for expected files to appear in the directory.
 
-    :param directory: Directory to watch for files.
     :param expected_files: List of filenames expected to appear.
     :param timeout: Maximum time to wait for the files (in seconds).
     """
-    start_time = time.time()
 
-    while True:
-        current_files = set(os.listdir(directory))
-        if set(expected_files).issubset(current_files):
-            break
-        if time.time() - start_time > timeout:
-            raise TimeoutError(f"Timeout: The expected files did not appear in {directory} within {timeout} seconds.")
-        time.sleep(1)  # Wait for a second before checking again
+    for _ in range(timeout * 10):
+        if all(os.path.exists(directory) for directory in expected_files):
+            return
+        time.sleep(0.1)  # Wait for a second before checking again
+    raise TimeoutError(f"Timeout: The expected files did not appear within {timeout} seconds.")
