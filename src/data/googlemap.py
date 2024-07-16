@@ -14,6 +14,7 @@ import pandas as pd
 from natsort import natsorted
 import skimage.measure
 import tensorflow as tf
+import datetime
 
 from src.utils import io_helper, geo_helper, preprocess
 from src.utils.io_helper import pretty
@@ -50,7 +51,7 @@ class GoogleMap(VBN, ImageData):
         ImageData.__init__(self, **kwargs)
         VBN.__init__(self, **kwargs)
         self.log = pd.DataFrame(
-            index=['y/lat', 'x/lon', 'z/agl', 'total/area'],
+            index=['x/lat', 'y/lon', 'z/agl', 'total/area', 'more info'],
             columns = ['TL',
                        'BR',
                        'Center',
@@ -79,15 +80,16 @@ class GoogleMap(VBN, ImageData):
         data_folder_name = self.map_type + '_' + str(self.overlap)
         self.data_dir = Path(data_dir) / data_folder_name
 
-        self.log['1 Image Size (m)'].iloc[:-1] =\
+        self.log['1 Image Size (m)'].iloc[:3] =\
             np.round(
                 geo_helper.get_map_dim_m(
                 self.args.fov,
                 self.args.coords[-1],
                 self.args.aspect_ratio[0] / self.args.aspect_ratio[1]
                 ),
-                2)
-        self.log['1 Image Size (m)'].iloc[-1] =\
+                2
+            )
+        self.log['1 Image Size (m)'].iloc[-2] =\
             round(self.log['1 Image Size (m)'].iloc[0] *\
                 self.log['1 Image Size (m)'].iloc[1], 2)
         self.log['TL'].iloc[:2] = self.args.coords[:2]
@@ -97,7 +99,7 @@ class GoogleMap(VBN, ImageData):
 
         self.input_dir = None
 
-    def check_data(self, download_raster):
+    def check_data(self):
         """
             Generate GoogleMap data from a given big picture map
             These calculations are theoretical measurements,
@@ -111,7 +113,7 @@ class GoogleMap(VBN, ImageData):
         map_zoom, map_size =\
             geo_helper.get_zoom_from_bounds(top_left,
                                             bottom_right)
-        self.log['Map Size (pixel/zoom)'].iloc[:-1] = map_size + [map_zoom]
+        self.log['Map Size (pixel/zoom)'].iloc[:3] = map_size + [map_zoom]
         center_lat = (top_left[0] + bottom_right[0]) / 2
         center_lon = (top_left[1] + bottom_right[1]) / 2
         self.log['Center'].iloc[:2] = center_lat, center_lon
@@ -130,13 +132,13 @@ class GoogleMap(VBN, ImageData):
             np.round(geo_helper.geo2utm(bottom_right[0], bottom_right[1]), 2)
 
         ## Convert geolocation of the raster corners to utm
-        # TL point
+        # Top Left point in meters
         map_tlm = geo_helper.geo2utm(top_left[0], top_left[1])
 
-        # TL point
+        # Bottom Right point in meters
         map_brm = geo_helper.geo2utm(bottom_right[0], bottom_right[1])
         self.log['Map Size (m)'].iloc[:2] = np.abs(np.subtract(map_tlm[:2], map_brm[:2])).round(2)
-        self.log['Map Size (m)'].iloc[-1] =\
+        self.log['Map Size (m)'].iloc[-2] =\
             round(self.log['Map Size (m)'].iloc[0] *\
                 self.log['Map Size (m)'].iloc[1], 2)
 
@@ -145,28 +147,53 @@ class GoogleMap(VBN, ImageData):
             / (self.log['1 Image Size (m)'].iloc[:2] * (1 - self.overlap)))
             .astype(int) + 1
         )
-        self.log['# Raster Images'].iloc[-1] =\
+        self.log['# Raster Images'].iloc[-2] =\
             self.log['# Raster Images'].iloc[0] *\
                 self.log['# Raster Images'].iloc[1]
 
-        pretty('[INFO] Data detailed values before download.\n',
-               'TL = Top Left, BR = Bottom Right\n',
-               self.log.dropna(axis=1, how='all').to_string(), info=self)
+        self.log['main arguments'] = [np.NaN] * 4 + [self.args]
 
-        self.log.to_csv(self.data_dir / 'log_before_download.csv')
         map_name = '_'.join(
             list(map(str, self.args.coords))
             ) + '_' \
                 + str(self.args.fov) + '_' \
                     + str(self.args.aspect_ratio[0]) + '_'\
                         + str(self.args.aspect_ratio[1]) + ".jpg"
+        map_response = geo_helper.init_static_map(
+            [center_lat, center_lon],
+            self.map_type,
+            map_zoom,
+            map_size
+        )
+
+        tl, br = geo_helper.meters2geo(
+            center=self.args.coords[:2],
+            img_size=self.log['1 Image Size (m)'].iloc[:2])
+        print('before get zoom', tl, br)
+        raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
+        self.log['1 Image Size (pixel/zoom)'].iloc[:3] = im_size + [raster_zoom]
+
+        io_helper.check_folder(self.data_dir / self.data_info['x'])
+
+        self.log['map link'] = [np.NaN] * 4 + [map_response.url]
+        self.log = self.log.dropna(axis=1, how='all').fillna('')
+
+        pretty('[INFO] Data detailed values before download.\n',
+               'TL = Top Left, BR = Bottom Right\n',
+               self.log.T.to_string(), info=self)
+
+        # Format current date and time
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+
+        # Create the new filename with the timestamp
+        filename = f'log_before_download_{timestamp}.csv'
+
+        # Save the CSV file with the new filename
+        self.log.T.to_csv(self.data_dir / filename)
         if map_name not in os.listdir(self.data_dir):
             geo_helper.get_static_map_image(
+                map_response,
                 self.data_dir / map_name,
-                [center_lat, center_lon],
-                map_type=self.map_type,
-                zoom=map_zoom,
-                size=map_size
                 )
         else:
             pretty('Map image is available in', self.data_dir, 'as', map_name,
@@ -186,7 +213,7 @@ class GoogleMap(VBN, ImageData):
         todo: more conditions for cleanup
         """
 
-        self.check_data(download_raster)
+        self.check_data()
         self.input_dir = io_helper.find_files(self.data_dir /
                                                  self.data_info['x'],
                                                  'jpg')
@@ -198,7 +225,7 @@ class GoogleMap(VBN, ImageData):
                 center=self.args.coords[:2],
                 img_size=self.log['1 Image Size (m)'].iloc[:2])
             raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
-            self.log['1 Image Size (pixel/zoom)'].iloc[:-1] = im_size + [raster_zoom]
+            self.log['1 Image Size (pixel/zoom)'].iloc[:3] = im_size + [raster_zoom]
 
             io_helper.check_folder(self.data_dir / self.data_info['x'])
             self.complete_download()
@@ -206,7 +233,6 @@ class GoogleMap(VBN, ImageData):
         self.input_dir = io_helper.find_files(self.data_dir /
                                                  self.data_info['x'],
                                                  'jpg')
-        print(self.input_dir)
         super().config()
 
 
@@ -390,12 +416,15 @@ class GoogleMap(VBN, ImageData):
                                 + '_' + str(raster_zoom) + '.jpg'
 
                         output_dir = self.data_dir / self.data_info['x'] / out_name
-                        geo_helper.get_static_map_image(
-                            output_dir,
+                        img_response = geo_helper.init_static_map(
                             [lat_i, lon_j],
                             map_type=self.map_type,
                             zoom=raster_zoom,
                             size=im_size
+                            )
+                        geo_helper.get_static_map_image(
+                            img_response,
+                            output_dir
                             )
                         x += raster_wx * (100 - overlap) / 100
                         _, lon_j = geo_helper.utm2geo(x, y)

@@ -1,0 +1,13 @@
+,x/lat,y/lon,z/agl,total/area,more info
+TL,48.85671431046839,2.352017289804551,,,
+BR,48.856511689166354,2.3524267093692615,,,
+Center,48.85661299981737,2.3522219995869063,,,
+TL (UTM),5538312.0,9934921.69,,,
+BR (UTM),5538342.47,9934961.07,,,
+Map Size (m),30.47,39.38,,1199.91,
+Map Size (pixel/zoom),610,459,21,,
+# Raster Images,1,1,,1,
+1 Image Size (m),30.04,22.53,22.86,676.8,
+1 Image Size (pixel/zoom),-338,466,21,,
+main arguments,,,,,"Namespace(coords=(48.85671431046839, 2.352017289804551, 48.856511689166354, 2.3524267093692615, 75.0), fov=78.8, aspect_ratio=[4, 3], overlap=0, utm='EPSG:32631', data_dir='dataset/Test', vmargin=0, img_size=[400, 400, 3], batch_size=8, seed=2024)"
+map link,,,,,https://maps.googleapis.com/maps/api/staticmap?center=48.85661299981737%2C2.3522219995869063&zoom=21&size=610x459&maptype=satellite&style=feature%3Aall%7Celement%3Alabels%7Cvisibility%3Aoff&key=AIzaSyBI743mOAfTFDyuJt-cpTMAy-_58oq-vu8

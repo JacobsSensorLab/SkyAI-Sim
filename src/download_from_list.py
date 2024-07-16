@@ -5,6 +5,7 @@
     author: spdkh
     date: July 2024, JacobsSensorLab
 """
+import enum
 import pandas as pd
 import numpy as np
 from src.utils import consts
@@ -30,23 +31,27 @@ def main():
     """
     args = consts.ARGS
 
-    coords_list = pd.read_csv(args.coords)
+    coords_list = np.asanyarray(pd.read_csv(args.coords,
+                                            dtype=float, sep=' '))
 
-    for coords in coords_list
-    bbox_m = geo_helper.get_map_dim_m(
-        args.coords[:2], args.coords[-1],
-        args.aspect_ratio[0]/args.aspect_ratio[1]
-        )
-    bbox = geo_helper.calc_bbox_m(args.coords[:2],
-                                  bbox_m)
-    args.coords = tuple(np.array(bbox).flatten()) + (args.coords[-1],)
-    aerial_data = GoogleMap(
+
+    for i, coords in enumerate(coords_list[-5:]):
+        print('\n\t################', i, coords)
+        print()
+        bbox_m = geo_helper.get_map_dim_m(
+                args.fov, coords[-1],
+                args.aspect_ratio[0]/args.aspect_ratio[1]
+                )
+        bbox = geo_helper.calc_bbox_m(coords[:2],
+                                        bbox_m)
+        args.coords = tuple(np.array(bbox).flatten()) + (coords[-1],)
+        aerial_data = GoogleMap(
         args=args,
         map_type='satellite',
         data_dir=args.data_dir,
         overlap=args.overlap
         )
-    aerial_data.config(download_raster=False)
+        aerial_data.check_data()
 
 
 if __name__ == '__main__':

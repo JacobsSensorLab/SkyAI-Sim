@@ -163,7 +163,7 @@ def pretty_args(args):
             if index % 3 == 0:
                 text += "\n"
 
-    return text.replace(' ', '.')
+    return text
 
 def wait_for_files(expected_files, timeout=2):
     """

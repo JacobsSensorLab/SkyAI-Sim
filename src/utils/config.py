@@ -67,7 +67,7 @@ def parse_args():
         },
         'vmargin':{
             'type': int,
-            'default': 20,
+            'default': 0,
             'help': ('Vertical margin to capture an image with a size bigger than the inteded dimension,'
                     'So that the Google sign and additional unwanted text can be removed later for post processing.'
                     '(You cannot publish your data withouth those texts.)\n'

@@ -18,30 +18,49 @@ from src.utils import consts
 from src.utils.io_helper import pretty
 
 
-def get_static_map_image(
-    data_dir: str, coords: Tuple[float, float],
-    map_type: str, zoom: int=15, size: Tuple[int, int]=(640, 640),
-    api_key: str=None, retry: int=10
+def get_static_map_image(response, data_dir: str, retry: int=10
     ):
     """Get a static map image from Google Maps API given
     latitude and longitude coordinates, map type, zoom level, size, and API key if available.
     Parameters:
         - data_dir (str): Direction where to save the loaded map data including datatype
+        - retry (int): Number of times to retry dowloading if errors happened
+    Processing Logic:
+        - Saves the collected data to the given directory if available
+        - Otherwise, specify the error and the URL for the error
+    """
+    final_url = response.url
+
+    for i in range(retry):
+        if response.status_code == 200:
+            with open(data_dir, "wb") as f:
+                f.write(response.content)
+            return
+    if response.status_code != 200:
+        raise ValueError(
+            "Trial", i,
+            "\nFailed to retrieve the image. Status code:", response.status_code,
+            "URL:", final_url[:-1]
+            )
+
+
+def init_static_map(coords: Tuple[float, float],
+    map_type: str, zoom: int=15, size: Tuple[int, int]=(640, 640),
+    api_key: str=None):
+    """Get a static map image from Google Maps API given
+    latitude and longitude coordinates, map type, zoom level, size, and API key if available.
+    Parameters:
         - coords (tuple): Latitude and Longitude coordinate.
-        - lon (float): Longitude coordinate.
         - map_type (str): Type of map to retrieve.
         - zoom (int): Zoom level of the map, default is 15.
         - size (tuple): Size of the map image in pixels, default is (640, 640).
         - api_key (str): API key for Google Maps API, if available.
-        - retry (int): Number of times to retry dowloading if errors happened
     Processing Logic:
         - Imports API key from hidden_file.py if available.
         - Constructs base URL and parameters for API call.
         - Removes labels from the map image.
         - Constructs final URL for API call.
         - Makes API call using requests library.
-        - Saves the collected data to the given directory if available
-        - Otherwise, specify the error and the URL for the error
     """
     try:
         if api_key is None:
@@ -59,23 +78,8 @@ def get_static_map_image(
         "style": "feature:all|element:labels|visibility:off",  # Remove labels
         "key": api_key,
     }
-
-    final_url = base_url + "?" \
-        + "&".join([f"{key}={value}" for key, value in params.items()])
     response = requests.get(base_url, params=params)
-
-    for i in range(retry):
-        if response.status_code == 200:
-            with open(data_dir, "wb") as f:
-                f.write(response.content)
-            return
-    if response.status_code != 200:
-        raise ValueError(
-            "Trial", i,
-            "\nFailed to retrieve the image. Status code:", response.status_code,
-            "URL:", final_url[:-1]
-            )
-
+    return response
 
 def calc_bbox_api(
     center: Tuple[float, float], zoom: int,
@@ -182,14 +186,16 @@ def get_zoom_from_bounds(
         }
         return cp
 
+    print(top_left, bottom_right)
+
     # Convert lat/lon coordinates to points
     cp_top_left = latlonToPt(top_left[0], top_left[1])
     cp_bottom_right = latlonToPt(bottom_right[0], bottom_right[1])
-
+    print(cp_top_left, cp_bottom_right)
     # Calculate half pixel width and height
     half_pw_x = (cp_bottom_right['x'] - cp_top_left['x']) / 2
     half_pw_y = (cp_bottom_right['y'] - cp_top_left['y']) / 2
-
+    print(half_pw_x, half_pw_y)
     # Initialize image size
     # This is the maximum pixel size available on Google Map
     # We get the high resolution first, then resize to the desired dimensions if needed
@@ -199,13 +205,14 @@ def get_zoom_from_bounds(
     # The other width is adjusted based on aspect ratio
     # Determine zoom level
     zoom = int(-math.log2(max(half_pw_x, half_pw_y) / img_size) - 1)
-
+    print(zoom)
     # Calculate final image width and height based on zoom level
     scaling_factor = 2 ** (zoom + 1)
     img_w = int(half_pw_x * scaling_factor)
     img_h = int(half_pw_y * scaling_factor)
+    print(img_w, img_h)
 
-    if zoom > 22:
+    if zoom > zoom_bound:
         raise  OutOfBounds("Zoom Level", zoom, "is out of bounds.")
 
     return zoom, [img_w, img_h]
@@ -324,10 +331,10 @@ def meters2geo(
 
     # Compute half the width and height of the image
     img_w_m, img_h_m = np.array(img_size) / 2
-
+    print('half im size', img_w_m, img_h_m)
     # Convert center point from geographic to UTM coordinates
     cxm, cym = geo2utm(center[0], center[1])
-
+    print('half im size utm', cxm, cym)
     # Calculate top left and bottom right UTM coordinates
     brm = (cxm + img_w_m, cym - img_h_m)
     tlm = (cxm - img_w_m, cym + img_h_m)
@@ -383,13 +390,13 @@ def haversine_distance(coords):
     return distance * 1000
 
 
-def geo2utm(lat: float, lon: float, epsg: int = consts.ARGS.utm) -> Tuple[float, float]:
+def geo2utm(lat: float, lon: float, epsg: str = consts.ARGS.utm) -> Tuple[float, float]:
     """
     Converts geographic coordinates to UTM coordinates.
     Parameters:
         - lat (float): Latitude in decimal degrees.
         - lon (float): Longitude in decimal degrees.
-        - epsg (int): EPSG code for desired UTM zone.
+        - epsg (str): EPSG code for desired UTM zone.
             Defaults to EPSG code for current UTM zone.
     Returns:
         - x (float): UTM easting coordinate.
@@ -406,13 +413,13 @@ def geo2utm(lat: float, lon: float, epsg: int = consts.ARGS.utm) -> Tuple[float,
     return x, y
 
 
-def utm2geo(x: float, y: float, epsg: int = consts.ARGS.utm) -> Tuple[float, float]:
+def utm2geo(x: float, y: float, epsg: str = consts.ARGS.utm) -> Tuple[float, float]:
     """
     Converts UTM coordinates to geographic coordinates.
     Parameters:
         - x (float): UTM x-coordinate.
         - y (float): UTM y-coordinate.
-        - epsg (int): EPSG code for UTM zone. Defaults to consts.ARGS.utm.
+        - epsg (str): EPSG code for UTM zone. Defaults to consts.ARGS.utm.
     Returns:
         - Tuple[float, float]: Geographic coordinates (latitude, longitude).
     Processing Logic:
@@ -423,6 +430,7 @@ def utm2geo(x: float, y: float, epsg: int = consts.ARGS.utm) -> Tuple[float, flo
     lon, lat = pyproj.Transformer.from_crs(
         epsg, "EPSG:4326", always_xy=True
         ).transform(x, y)
+    print(lat, lon)
     return lat, lon
 
 def calc_bbox_m(center_coords, bbox_m):
@@ -443,7 +451,6 @@ def calc_bbox_m(center_coords, bbox_m):
     # Calculate half of the width and height in degrees
     half_x = bbox_m[0] / 2
     half_y = bbox_m[1] / 2
-    print(center_point, half_x, half_y)
     # Top-left corner (north-west)
     top_left = geodesic(meters=half_y).destination(center_point, 0)  # North
     top_left = geodesic(meters=half_x).destination(top_left, 270)  # West
@@ -455,7 +462,6 @@ def calc_bbox_m(center_coords, bbox_m):
     return (top_left.latitude, top_left.longitude), (bottom_right.latitude, bottom_right.longitude)
 
 def get_map_dim_m(fov_d, agl_f, aspect_ratio):
-    print(agl_f)
     agl_m = agl_f * 0.3048 # convert feet to meters
     # Calculate diagonal in meters in image using fov and ar
     d_m = 2 * agl_m * np.tan(np.radians(fov_d/2))
