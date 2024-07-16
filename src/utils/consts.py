@@ -9,18 +9,11 @@ from turtle import update
 from src.utils.config import parse_args
 
 
-def update_args(new_args=None):
-    global ARGS
-    if new_args is None:
-        try:
-            ARGS = parse_args().parse_args()
-        except:
-            # To be able to run in google colab
-            ARGS = parse_args().parse_args(args=[])
-    else:
-        ARGS = new_args
-
-ARGS = update_args()
+try:
+    ARGS = parse_args().parse_args()
+except:
+    # To be able to run in google colab
+    ARGS = parse_args().parse_args(args=[])
 print(ARGS)
 
 # the path corresponding to current file directory
