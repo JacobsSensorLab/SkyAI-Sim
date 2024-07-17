@@ -16,6 +16,8 @@ import skimage.measure
 import tensorflow as tf
 import datetime
 from types import SimpleNamespace
+import pprint
+import json
 
 
 from src.utils import io_helper, geo_helper, preprocess
@@ -56,13 +58,13 @@ class GoogleMap(VBN, ImageData):
         # Log File
 
         self.log = SimpleNamespace()
-        self.log.args = self.args
+        self.log.args = vars(self.args)
 
         # Format current date and time
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
         # Create the new filename with the timestamp
-        self.log.filename = f'log_before_download_{timestamp}.txt'
+        self.log.filename = f'log_{timestamp}.txt'
 
         log_features = ['top_left',
                         'bottom_right',
@@ -71,7 +73,6 @@ class GoogleMap(VBN, ImageData):
                         'single_img_size',
                         'n_raster_imgs']
 
-        print(self.log)
         for feature in log_features:
             setattr(self.log, feature, SimpleNamespace())
 
@@ -141,25 +142,25 @@ class GoogleMap(VBN, ImageData):
         utm = geo_helper.get_utm_epsg((self.log.center.lat, self.log.center.lon))
         if self.args.utm != utm:
             self.args.utm = utm
-            pretty('Changing UTM Zone to', utm, info='Warning!')
+            pretty('Changing UTM Zone to', utm, log=self, header='Warning!')
         ## Convert geolocation of the raster corners to utm
         # TL and BR points
         self.assign_log('top_left', ['x_utm', 'y_utm'],
-                        np.round(geo_helper.geo2utm(top_left[0], top_left[1]), 3))
+                        np.round(geo_helper.geo2utm(top_left[0], top_left[1], self.args.utm), 3))
         self.assign_log('bottom_right', ['x_utm', 'y_utm'],
-                        np.round(geo_helper.geo2utm(bottom_right[0], bottom_right[1]), 3))
+                        np.round(geo_helper.geo2utm(bottom_right[0], bottom_right[1], self.args.utm), 3))
 
         ## Convert geolocation of the raster corners to utm
         # Top Left point in meters
-        map_tlm = geo_helper.geo2utm(top_left[0], top_left[1])
+        map_tlm = geo_helper.geo2utm(top_left[0], top_left[1], self.args.utm)
 
         # Bottom Right point in meters
-        map_brm = geo_helper.geo2utm(bottom_right[0], bottom_right[1])
+        map_brm = geo_helper.geo2utm(bottom_right[0], bottom_right[1], self.args.utm)
 
         self.assign_log('map_size', ['x_m', 'y_m'],
                         np.abs(np.subtract(map_tlm[:2], map_brm[:2])).round(3))
 
-        self.log.map_size.area_m =\
+        self.log.map_size.area_m2 =\
             round(self.log.map_size.x_m * self.log.map_size.y_m, 3)
 
         for attr in ['x', 'y']:
@@ -189,8 +190,8 @@ class GoogleMap(VBN, ImageData):
         tl, br = geo_helper.meters2geo(
             center=self.args.coords[:2],
             img_size=[self.log.single_img_size.x_m,
-                      self.log.single_img_size.y_m])
-        print('before get zoom', tl, br)
+                      self.log.single_img_size.y_m],
+            epsg=self.args.utm)
         raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
         self.assign_log('single_img_size',
                 ['x_pixels', 'y_pixels', 'zoom'],
@@ -199,12 +200,15 @@ class GoogleMap(VBN, ImageData):
         io_helper.check_folder(self.data_dir / self.data_info['x'])
 
         self.log.map_url = map_response.url
+        pretty('Data detailed values before download:')
+        pprint.pp(self.log)
+        # Save the log file with the new filename
+        # self.log.T.to_csv()
+        io_helper.check_folder(self.data_dir / 'logs')
+        with open(self.data_dir / 'logs' / self.log.filename, 'w') as file:
+            # Save the namespace to the file
+            io_helper.save_namespace(self.log, file)
 
-        pretty('[INFO] Data detailed values before download.\n',
-               self.log, info=self)
-        quit()
-        # Save the CSV file with the new filename
-        # self.log.T.to_csv(self.data_dir / self.log.filename)
         if map_name not in os.listdir(self.data_dir):
             geo_helper.get_static_map_image(
                 map_response,
@@ -212,7 +216,7 @@ class GoogleMap(VBN, ImageData):
                 )
         else:
             pretty('Map image is available in', self.data_dir, 'as', map_name,
-                   info=self)
+                   log=self)
 
     def config(self, download_raster=True):
         """
@@ -276,11 +280,11 @@ class GoogleMap(VBN, ImageData):
 
         if os.path.exists(self.data_dir / 'meta_data.csv'):
             pretty('Found the metadata file...',
-               info=self)
+               log=self)
             self.meta_df = pd.read_csv(self.data_dir / 'meta_data.csv')
         else:
             pretty('Generating the metadata file...',
-               info=self)
+               log=self)
             meta_data = []
 
             meta_data = [[os.path.basename(path_)] \
@@ -298,7 +302,7 @@ class GoogleMap(VBN, ImageData):
             self.meta_df.to_csv(self.data_dir / 'meta_data.csv')
 
         pretty('All metadata:\n', self.meta_df,
-               info=self)
+               log=self)
 
         self.labels = self.meta_df.loc[:, ['Lat', 'Lon', 'Alt']]
 
@@ -334,10 +338,10 @@ class GoogleMap(VBN, ImageData):
         """
         ## Convert geolocation of the raster corners to utm
         # TL point
-        map_tlm = geo_helper.geo2utm(top_left_coords[0], top_left_coords[1])
+        map_tlm = geo_helper.geo2utm(top_left_coords[0], top_left_coords[1], self.args.utm)
 
         # TL point
-        map_brm = geo_helper.geo2utm(bottom_right_coords[0], bottom_right_coords[1])
+        map_brm = geo_helper.geo2utm(bottom_right_coords[0], bottom_right_coords[1], self.args.utm)
 
         ## Start Raster from TL of the map
         # get coordinates of the corners
@@ -350,8 +354,8 @@ class GoogleMap(VBN, ImageData):
 
         raster_zoom = self.log.single_img_size.zoom
         # Convert coordinates to UTM
-        tlm = geo_helper.geo2utm(tl[0], tl[1])
-        brm = geo_helper.geo2utm(br[0], br[1])
+        tlm = geo_helper.geo2utm(tl[0], tl[1], self.args.utm)
+        brm = geo_helper.geo2utm(br[0], br[1], self.args.utm)
         x_orig = tlm[0]
 
         # Width of each raster image along x, y in meters
@@ -376,16 +380,16 @@ class GoogleMap(VBN, ImageData):
             last_x, last_y, lat_i, lon_j, _ = last_img_name[:-4].split('_')
             last_x, last_y = int(last_x), int(last_y)
             lat_i, lon_j = float(lat_i), float(lon_j)
-            x, y = geo_helper.geo2utm(lat_i, lon_j)
+            x, y = geo_helper.geo2utm(lat_i, lon_j, self.args.utm)
 
             # last x and y start from 0
             if [last_x + 1, last_y + 1] == [n_images_x, n_images_y]:
-                pretty('All data already downloaded.', info=self)
+                pretty('All data already downloaded.', log=self)
                 return
 
             pretty('Downloading the rest of Google Map images from \nx = ',
                    last_x + 1, ' / ', n_images_x,
-                   '\ny = ', last_y + 1, ' / ', n_images_y, info=self)
+                   '\ny = ', last_y + 1, ' / ', n_images_y, log=self)
             # Determine the UTM coordinates and ID of the nex image to download
             if last_x < n_images_x - 1:
                 last_x += 1
@@ -395,9 +399,9 @@ class GoogleMap(VBN, ImageData):
                 last_y += 1
                 y -= raster_wy * (100 - overlap) / 100
                 x = x_orig
-            lat_i, lon_j = geo_helper.utm2geo(x, y)
+            lat_i, lon_j = geo_helper.utm2geo(x, y, self.args.utm)
         else:
-            pretty('Downloading All Google Map images...', info=self)
+            pretty('Downloading All Google Map images...', log=self)
             last_x, last_y = 0, 0
             lat_i, lon_j = top_left_coords
             x, y = tlm
@@ -407,12 +411,11 @@ class GoogleMap(VBN, ImageData):
         if n_images_x * n_images_y > 5000:
             pretty('Number of images exceed the publishable limit. Read more at:',
                    '\nhttps://about.google/brand-resource-center/products-and-services/geo-guidelines/#required-attribution/',
-                   info='Warning!')
+                   log=self, header='Warning!')
         io_helper.check_folder(self.data_dir / self.data_info['x'])
 
         pretty('Do you want to proceed? (y/yes):', end=' ',
-                   info='Attention!',
-                   color='\033[31m')
+                   log=self, header='Attention!')
         response = input().strip().lower()
         if response in ["y", "yes"]:
             print("Confirmed.")
@@ -447,16 +450,16 @@ class GoogleMap(VBN, ImageData):
                             output_dir
                             )
                         x += raster_wx * (100 - overlap) / 100
-                        _, lon_j = geo_helper.utm2geo(x, y)
+                        _, lon_j = geo_helper.utm2geo(x, y, self.args.utm)
 
                         pbar.update()
                         i += 1
                     y -= raster_wy * (100 - overlap) / 100
                     x = x_orig
-                    lat_i, lon_j = geo_helper.utm2geo(x, y)
+                    lat_i, lon_j = geo_helper.utm2geo(x, y, self.args.utm)
         else:
             pretty("Not Proceeding the download. Continuing without the download...",
-                   info=self)
+                   log=self)
 
         print('\t Number of rows and columns:', i, j)
 
@@ -475,11 +478,11 @@ class GoogleMap(VBN, ImageData):
             road_dir = road_dir / 'meta_data.csv'
             if os.path.exists(road_dir):
                 meta_df = pd.read_csv(road_dir)
-                print('Roadmap data available. Cleaning up based on roadmap entropies...')
+                pretty('Roadmap data available. Cleaning up based on roadmap entropies...')
             else:
                 pretty('Roadmap meta data file is not found.',
                         '\nUsing self meta data file to cleanup data. (Not recommended)',
-                        info='Warning!')
+                        log=self, header='Warning!')
 
         thr_q = meta_df['entropies'] >= entropy_thr
 
@@ -489,7 +492,7 @@ class GoogleMap(VBN, ImageData):
                             )
         pretty('Cleanedup Data from threshold', entropy_thr,
             '\n', self.labels.sample(5),
-            '\nNumber of Samples:', len(self.input_dir), info=self)
+            '\nNumber of Samples:', len(self.input_dir), log=self)
 
 
     def preprocess_image(self, image):

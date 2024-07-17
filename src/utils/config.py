@@ -122,14 +122,12 @@ def update_args_with_json(json_file):
             with open(json_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except (IOError, json.JSONDecodeError) as e:
-            print(f"Error loading JSON file: {e}")
+            pretty("Error loading JSON file:" + e, header='Warning!')
             return {}
     else:
         pretty("Default file" ,json_file, "not found.",
-               info='Warning!', color='\033[38;5;208m')
+               header='Warning!')
         return {}
-
-    import argparse
 
 
 def string_or_list_of_floats(value):

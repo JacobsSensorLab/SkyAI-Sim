@@ -170,7 +170,6 @@ def imread(img_path, shape=consts.IMG_SIZE[:2]):
     with Image.open(img_path) as img:
         if img.mode != "RGB":
             img = img.convert("RGB")
-        print(np.shape(img))
         img = img.resize(shape)
         img = Scaler().fit_transform(np.asarray(img))
     return img

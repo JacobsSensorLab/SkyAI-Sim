@@ -64,14 +64,56 @@ check compatibility here: https://www.tensorflow.org/install/source#gpu
 
     pip install -r requirements.txt
 
+## Create a GoogleMap API key:
+**(you can skip this if you are only willing to use the data available in dataset folder)**
+Check how you can create one here: https://developers.google.com/maps/documentation/javascript/get-api-key
 
-## Train with 100 epochs:
 
-    python -m src.main --data_dir /path/to/dataset
+## Access and use the data:
+
+Check notebooks folder.
+
+## Download the Data:
+
+### A single coordinate
+
+To download a sample single image you can run:
+
+    python -m src.download_single
+
+To specify more features, you can do either:
+
+    python -m src.download_single --coords /path/to/file --aspect_ratio <X> <Y> --fov <degrees> --data_dir /path/to/dataset
+
+The file should have one line including the following data:
+
+    <latitude> <longitude> <AGL(f)>
+
+Check dataset/sample_coords.txt as an example.
+
+Or:
+
+    python -m src.download_single --coords "<Latitude>_<Longitude>_<AGL(feet)>"
 
 for more configuration parameters checkout src/utils/config.py or type:
 
     python -m src.main --help
+
+**For example:**
+
+    python -m src.download_single --coords "dataset/sample_coords.txt" --aspect_ratio 4 3 --fov 78.8 --data_dir dataset/
+
+Note: the aspect ratio and fov are from DJI Mavic and are set to the above values by default.
+or
+
+    python -m src.download_single --coords "35.22_-90.07_400"
+
+### A list of coordinates
+
+    python -m src.download_from_list --coords /path/to/file
+
+### Raster Mission
+    python -m src.download_raster --coords "<TopLeftLatitude>_<TopLeftLongitude>_<TopLeftLatitude>_<TopLeftLongitude>_<AGL(feet)>"
 
 
 ## License

@@ -7,6 +7,7 @@
 import os
 import glob
 import time
+from types import SimpleNamespace
 
 import geopy.point
 from PIL.ExifTags import TAGS, GPSTAGS
@@ -116,9 +117,29 @@ def metadata_read(img_path):
     return None
 
 
-def pretty(*objects, sep=' ', end='\n', info=None, color="\033[93m"):
-    if info == 'Warning!':
+def pretty(*objects, sep=' ', end='\n', log=None, header='', color="\033[93m"):
+    """
+    Prints formatted output with optional color and header based on the provided arguments.
+    Parameters:
+        - *objects (any): Objects to be printed.
+        - sep (str): Separator between objects. Defaults to a space.
+        - end (str): String appended after the last object. Defaults to a newline.
+        - log (str, optional): Optional log information to be printed and saved. Defaults to None.
+        - header (str): Header text to be displayed at the top of the output. Defaults to an empty string.
+        - color (str): Text color in ANSI escape sequences. Defaults to yellow.
+    Returns:
+        - None: This function does not return any value.
+    Example:
+        - pretty("Hello", "World", header="Greeting:", color="\033[92m")
+    todo: save log
+    """
+    if not log is None:
+        print('source:', log)
+
+    if 'Warning' in header:
         color='\033[38;5;208m'
+    elif 'Attention' in header:
+        color='\033[31m'
     print('\033[40m') # Set background to black
     reset = "\033[0m"  # Reset text color to default
 
@@ -127,27 +148,23 @@ def pretty(*objects, sep=' ', end='\n', info=None, color="\033[93m"):
     except:
         terminal_size = 75
 
-    block_len = min(terminal_size,
-                    max(
-                        20 + max([len(i) for i in str(objects).split('\\n')]),
-                        20 + len(str(info))
-                        )
-                    )
-    header = 'Info:'
-    print('-'*block_len)
-    if info is not None:
-         header += str(info)
-
-    print(header.center(block_len))
+    block_len = min(
+        terminal_size,
+        20 + max([len(i) for i in str(objects).split('\\n')])
+        )
 
     print('-'*block_len)
+    if header != '':
+        header = str(header)
+        print(header.center(block_len))
+        print('-'*block_len)
 
     print(color)
 
     print(*objects, sep=sep, end=end)
     print(reset + '\033[40m')
 
-    print('-'*block_len)
+    print('-'*block_len, end='')
     print(reset)
 
 
@@ -178,3 +195,16 @@ def wait_for_files(expected_files, timeout=2):
             return
         time.sleep(0.1)  # Wait for a second before checking again
     raise TimeoutError(f"Timeout: The expected files did not appear within {timeout} seconds.")
+
+
+def save_namespace(namespace, file, prefix=""):
+    """
+        Define the recursive function to save namespace
+    """
+    for attr in dir(namespace):
+        if not attr.startswith('__'):
+            value = getattr(namespace, attr)
+            if isinstance(value, SimpleNamespace):
+                save_namespace(value, file, prefix=prefix + attr + '.')
+            else:
+                file.write(f"{prefix}{attr} = {value}\n")

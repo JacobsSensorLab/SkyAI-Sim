@@ -14,7 +14,6 @@ try:
 except:
     # To be able to run in google colab
     ARGS = parse_args().parse_args(args=[])
-print(ARGS)
 
 # the path corresponding to current file directory
 THIS_DIR = Path(__file__).__str__()

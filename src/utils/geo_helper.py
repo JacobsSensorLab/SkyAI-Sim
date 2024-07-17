@@ -67,7 +67,7 @@ def init_static_map(coords: Tuple[float, float],
             from src.hidden_file import api_key
     except ModuleNotFoundError:
         pretty('hidden_file.py is not available.',
-               info='Warning!', color='\033[38;5;208m')
+               header='Warning!')
         return
     base_url = "https://maps.googleapis.com/maps/api/staticmap"
     params = {
@@ -138,7 +138,7 @@ def calc_bbox_api(
     # adjusted center point pixel coordinates
     cp = {
         'x': consts.tile_center_p['x'] + center[1] * consts.pixel_per_degree,
-        'y': consts.tile_center_p['y'] + 0.5 * math.log((1 + a) / (1 - a)) * - consts.pixel_per_radian
+        'y': consts.tile_center_p['y'] + 0.5 * math.log((1 + a) / (1 - a)) * -consts.pixel_per_radian
     }
 
     top_left = pt_to_lat_lon({'x': cp['x'] - half_pw_x, 'y': cp['y'] - half_pw_y})
@@ -185,17 +185,12 @@ def get_zoom_from_bounds(
             'y': consts.tile_center_p['y'] + 0.5 * math.log((1 + a) / (1 - a)) * -consts.pixel_per_radian
         }
         return cp
-
-    print(top_left, bottom_right)
-
     # Convert lat/lon coordinates to points
     cp_top_left = latlonToPt(top_left[0], top_left[1])
     cp_bottom_right = latlonToPt(bottom_right[0], bottom_right[1])
-    print(cp_top_left, cp_bottom_right)
     # Calculate half pixel width and height
     half_pw_x = (cp_bottom_right['x'] - cp_top_left['x']) / 2
     half_pw_y = (cp_bottom_right['y'] - cp_top_left['y']) / 2
-    print(half_pw_x, half_pw_y)
     # Initialize image size
     # This is the maximum pixel size available on Google Map
     # We get the high resolution first, then resize to the desired dimensions if needed
@@ -205,12 +200,10 @@ def get_zoom_from_bounds(
     # The other width is adjusted based on aspect ratio
     # Determine zoom level
     zoom = int(-math.log2(max(half_pw_x, half_pw_y) / img_size) - 1)
-    print(zoom)
     # Calculate final image width and height based on zoom level
     scaling_factor = 2 ** (zoom + 1)
     img_w = int(half_pw_x * scaling_factor)
     img_h = int(half_pw_y * scaling_factor)
-    print(img_w, img_h)
 
     if zoom > zoom_bound:
         raise  OutOfBounds("Zoom Level", zoom, "is out of bounds.")
@@ -282,9 +275,6 @@ def geo_calcs(data):
     """
     data_min = np.min(data, axis=0)
     data_max = np.max(data, axis=0)
-    print('[INFO] Analyzing downloaded data.')
-    print('Minimum:\n', data_min
-                , '\nMaximum:\n', data_max)
 
     coords_ul = (data_min['Lat'], data_min['Lon'])
     coords_ur = (data_max['Lat'], data_min['Lon'])
@@ -301,17 +291,18 @@ def geo_calcs(data):
     # only applicable if the images forming a rectangle do not overlap
     img_area = land_area / len(data)
 
-    print('Area Diagonal Distance:', img_diagonal, ' Km',
+    pretty('Area Diagonal Distance:', img_diagonal, ' Km',
                     '\nWidth =', land_width, 'Km',
                     '\nHeight =', land_height, 'Km',
                     '\nLand area = ', land_area, 'Km^2',
-                    '\nArea covered by each image =', img_area, 'Km^2')
+                    '\nArea covered by each image =', img_area, 'Km^2',
+                    header='[INFO] Analyzing downloaded data. Attention!')
 
     return data_min, data_max
 
 
 def meters2geo(
-    center: Tuple[float, float], img_size: Tuple[float, float]
+    center: Tuple[float, float], img_size: Tuple[float, float], epsg
     ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
     """
     Function: Converts the center point and image size from meters
@@ -331,17 +322,15 @@ def meters2geo(
 
     # Compute half the width and height of the image
     img_w_m, img_h_m = np.array(img_size) / 2
-    print('half im size', img_w_m, img_h_m)
     # Convert center point from geographic to UTM coordinates
-    cxm, cym = geo2utm(center[0], center[1])
-    print('half im size utm', cxm, cym)
+    cxm, cym = geo2utm(center[0], center[1], epsg)
     # Calculate top left and bottom right UTM coordinates
     brm = (cxm + img_w_m, cym - img_h_m)
     tlm = (cxm - img_w_m, cym + img_h_m)
 
     # Convert UTM coordinates back to geographic coordinates
-    tl = utm2geo(tlm[0], tlm[1])
-    br = utm2geo(brm[0], brm[1])
+    tl = utm2geo(tlm[0], tlm[1], epsg)
+    br = utm2geo(brm[0], brm[1], epsg)
 
     return tl, br
 
@@ -430,7 +419,6 @@ def utm2geo(x: float, y: float, epsg: str = consts.ARGS.utm) -> Tuple[float, flo
     lon, lat = pyproj.Transformer.from_crs(
         epsg, "EPSG:4326", always_xy=True
         ).transform(x, y)
-    print(lat, lon)
     return lat, lon
 
 def calc_bbox_m(center_coords, bbox_m):

@@ -92,7 +92,7 @@ class VBN(ImageData):
                               names=[0])
 
         pretty('Number of texts in the path:', len(self.output_dir),
-               '\nFirst metadata sample:\n', meta_df, info=self)
+               '\nFirst metadata sample:\n', meta_df, log=self)
 
         meta_dfs = []
         for i, meta_data in enumerate(self.output_dir[:-1]):
@@ -101,7 +101,7 @@ class VBN(ImageData):
 
         meta_df = pd.concat(meta_dfs, axis=1)
 
-        pretty('All metadata:\n', meta_df, info=self)
+        pretty('All metadata:\n', meta_df, log=self)
 
         self.labels = meta_df.loc['Platform_position_LatLongAlt', :]
         self.labels = \
@@ -171,18 +171,18 @@ class VBN(ImageData):
 
         todo: check scaler should apply scaling per column
         """
-        updated_labels = np.asarray([geo_helper.geo2utm(lat, lon) \
+        updated_labels = np.asarray([geo_helper.geo2utm(lat, lon, self.args.utm) \
             for lat, lon in self.labels.loc[:, ['Lat', 'Lon']].values])
 
         pretty('Sample Network Outputs\n:',
-               updated_labels[:10], info=self)
+               updated_labels[:10], log=self)
         y_normalized = pd.DataFrame(
             self.scaler.fit_transform(updated_labels),
             columns=['Lat', 'Lon']
         )
         y_normalized['Alt'] = self.labels['Alt']
 
-        pretty('Normalized outputs (y_normalized):\n', y_normalized, info=self)
+        pretty('Normalized outputs (y_normalized):\n', y_normalized, log=self)
 
         # Split to 80 train, 10 test, 10 validation
         self.data_info['x'+ self.modes[0]], x_test, \
@@ -205,7 +205,7 @@ class VBN(ImageData):
             for status in ['x', 'y']:
                 text += '\n'+ status + '_' + mode
                 text += ' size: ' + str(self.data_info[status + mode])
-        pretty('Sample image size:', self.input_dim, info=self)
+        pretty('Sample image size:', self.input_dim, log=self)
 
     def keras_dataset(self, mode):
         """Parameters:

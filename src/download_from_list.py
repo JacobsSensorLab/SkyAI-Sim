@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 from src.utils import consts
 from src.data.googlemap import GoogleMap
-from src.utils import geo_helper
+from src.utils import geo_helper, io_helper
 
 
 def main():
@@ -36,8 +36,7 @@ def main():
 
 
     for i, coords in enumerate(coords_list[-5:]):
-        print('\n\t################', i, coords)
-        print()
+        io_helper.pretty(coords, header = 'Coordinate ' + str(i + 1))
         bbox_m = geo_helper.get_map_dim_m(
                 args.fov, coords[-1],
                 args.aspect_ratio[0]/args.aspect_ratio[1]
