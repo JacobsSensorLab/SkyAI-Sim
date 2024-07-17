@@ -2,6 +2,11 @@
 
 Capturing real-world aerial images is challenging due to limited availability and conditions that make it nearly impossible to access all desired images from any location. The complexity increases when multiple locations are involved. Traditional solutions, such as flying a UAV (Unmanned Aerial Vehicle) to take pictures or using existing research databases, have significant limitations. SkyAI Sim offers a compelling alternative by simulating a UAV to capture aerial images with real-world visible-band specifications. This open-source tool allows users to specify the top-left and bottom-right coordinates of any region on a map. Without the need to physically fly a drone, the virtual UAV performs a raster search to capture satellite images using the Google Maps API. Users can define parameters such as flight altitude in meters, aspect ratio and diagonal field of view of the camera, and the overlap between consecutive images. SkyAI Sim's capabilities range from capturing a few low-altitude images for basic applications to generating extensive datasets of entire cities for complex tasks like deep learning. This versatility makes SkyAI a valuable tool for various applications in environmental monitoring, construction, and city management. The open-source nature of the tool also allows for extending the raster search to any other desired path. It is important to note that while the search can theoretically be conducted worldwide, the most accurate results are achieved if users stay within the same or nearby UTM (Universal Transverse Mercator) zone. Therefore, specifying the zone for the program is recommended. Using SkyAI Sim, a few examples of Memphis, TN are also provided.
 
+## Requirements:
+
+Python 3.11
+pip
+conda (recommended)
 
 ## Google Colab Repository for local edits:
 
@@ -61,16 +66,18 @@ This is optional but highly recommended. You can use any other desired environme
 check compatibility here: https://www.tensorflow.org/install/source#gpu
 
     conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1 # Not necessary for this project
-    pip install tensorflow==2.11
 
 ### Install other dependencies:
-
+    pip install tensorflow==2.11
     pip install -r requirements.txt
 
 ## Create a GoogleMap API key:
 **(you can skip this if you are only willing to use the data available in dataset folder)**
 Check how you can create one here: https://developers.google.com/maps/documentation/javascript/get-api-key
 
+Then make a python file in the src folder called: hidden_file.py and add the following line to it:
+
+    api_key='<Your API Key>'
 
 ## Access and use the data:
 
