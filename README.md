@@ -49,9 +49,12 @@ conda install ipykernel
 
 ## Initiate and activate the environment:
 
+    cd /path/to/skyai-sim
+
+This is optional but highly recommended. You can use any other desired environment and skip this section.
+
     conda create -n "skyai-sim" python=3.11
     conda activate skyai-sim
-    cd /path/to/skyai-sim
 
 ### to enable GPU access (update with your desired version)
 
@@ -77,44 +80,48 @@ Check notebooks folder.
 
 ### A single coordinate
 
-To download a sample single image you can run:
+- To download a sample single image you can run:
 
-    python -m src.download_single
+        python -m src.download_single
 
-To specify more features, you can do either:
+    To specify more features, you can do either:
 
-    python -m src.download_single --coords /path/to/file --aspect_ratio <X> <Y> --fov <degrees> --data_dir /path/to/dataset
+        python -m src.download_single --coords /path/to/file --aspect_ratio <X> <Y> --fov <degrees> --data_dir /path/to/dataset
 
-The file should have one line including the following data:
+    The file should have one line including the following data:
 
-    <latitude> <longitude> <AGL(f)>
+        <latitude> <longitude> <AGL(f)>
 
-Check dataset/sample_coords.txt as an example.
+    Check dataset/sample_coords.txt as an example.
 
-Or:
+- Or:
 
-    python -m src.download_single --coords "<Latitude>_<Longitude>_<AGL(feet)>"
+        python -m src.download_single --coords "<Latitude>_<Longitude>_<AGL(feet)>"
 
 for more configuration parameters checkout src/utils/config.py or type:
 
     python -m src.main --help
 
-**For example:**
+- **For example:**
 
-    python -m src.download_single --coords "dataset/sample_coords.txt" --aspect_ratio 4 3 --fov 78.8 --data_dir dataset/
+        python -m src.download_single --coords "dataset/sample_coords.txt" --aspect_ratio 4 3 --fov 78.8 --data_dir dataset/
 
-Note: the aspect ratio and fov are from DJI Mavic and are set to the above values by default.
-or
+    Note: the aspect ratio and fov are from DJI Mavic and are set to the above values by default.
 
-    python -m src.download_single --coords "35.22_-90.07_400"
+- Or:
+
+        python -m src.download_single --coords "35.22_-90.07_400"
 
 ### A list of coordinates
 
     python -m src.download_from_list --coords /path/to/file
 
 ### Raster Mission
-    python -m src.download_raster --coords "<TopLeftLatitude>_<TopLeftLongitude>_<TopLeftLatitude>_<TopLeftLongitude>_<AGL(feet)>"
+    python -m src.download_raster --coords "35.22_-90.07_35.06_-89.73_400"
 
+- **For example:**
+
+      python -m src.download_raster --coords "<TopLeftLatitude>_<TopLeftLongitude>_<TopLeftLatitude>_<TopLeftLongitude>_<AGL(feet)>"
 
 ## License
 
