@@ -4,4 +4,4 @@ results*
 *desktop.ini*
 *hidden_file*
 *.vscode/*
-*log*
+/dataset/*log*
