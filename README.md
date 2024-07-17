@@ -84,7 +84,10 @@ Check notebooks folder.
 
         python -m src.download_single
 
-    To specify more features, you can do either:
+<details>
+  <summary>To specify more features:</summary>
+
+    You can do either:
 
         python -m src.download_single --coords /path/to/file --aspect_ratio <X> <Y> --fov <degrees> --data_dir /path/to/dataset
 
@@ -111,6 +114,8 @@ for more configuration parameters checkout src/utils/config.py or type:
 - Or:
 
         python -m src.download_single --coords "35.22_-90.07_400"
+
+</details>
 
 ### A list of coordinates
 
