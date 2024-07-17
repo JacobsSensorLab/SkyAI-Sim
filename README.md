@@ -80,9 +80,7 @@ Check notebooks folder.
 
 ### A single coordinate
 
-- To download a sample single image you can run:
-
-        python -m src.download_single
+    python -m src.download_single
 
 <details>
   <summary>To specify more features:</summary>
