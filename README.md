@@ -4,9 +4,91 @@ Capturing real-world aerial images is challenging due to limited availability an
 
 ## Requirements:
 
-Python 3.11
-pip
-conda (recommended)
+- Python 3.6-3.12
+- pip
+- conda (recommended)
+
+## Initiate and activate the environment:
+
+    cd /path/to/skyai-sim
+
+This is optional but highly recommended. You can use any other desired environment and skip this section.
+
+    conda create -n "skyai-sim" python=3.10
+    conda activate skyai-sim
+
+### to enable GPU access (update with your desired version)
+
+check compatibility here: https://www.tensorflow.org/install/source#gpu
+
+    conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1 # Not necessary for this project
+
+### Install other dependencies:
+    pip install tensorflow==2.11
+    pip install -r requirements.txt
+
+## Create a GoogleMap API key:
+**(you can skip this if you are only willing to use the data available in dataset folder)**
+Check how you can create one here: https://developers.google.com/maps/documentation/javascript/get-api-key
+
+Then make a python file in the src folder called: hidden_file.py and add the following line to it:
+
+    api_key='<Your API Key>'
+
+## Access and use the data:
+
+Check notebooks folder.
+
+## Download the Data:
+
+### A single coordinate
+
+    python -m src.download_single
+
+<details>
+  <summary>To specify more features:</summary>
+
+You can do either:
+
+    python -m src.download_single --coords /path/to/file --aspect_ratio <X> <Y> --fov <degrees> --data_dir /path/to/dataset
+
+The file should have one line including the following data:
+
+    <latitude> <longitude> <AGL(f)>
+
+Check dataset/sample_coords.txt as an example.
+
+Or:
+
+    python -m src.download_single --coords "<Latitude>_<Longitude>_<AGL(feet)>"
+
+for more configuration parameters checkout src/utils/config.py or type:
+
+    python -m src.main --help
+
+- **For example:**
+
+        python -m src.download_single --coords "dataset/sample_coords.txt" --aspect_ratio 4 3 --fov 78.8 --data_dir dataset/
+
+    Note: the aspect ratio and fov are from DJI Mavic and are set to the above values by default.
+
+- Or:
+
+        python -m src.download_single --coords "35.22_-90.07_400"
+
+</details>
+
+### A list of coordinates
+
+    python -m src.download_from_list --coords /path/to/file
+
+### Raster Mission
+    python -m src.download_raster --coords "35.22_-90.07_35.06_-89.73_400"
+
+- **For example:**
+
+      python -m src.download_raster --coords "<TopLeftLatitude>_<TopLeftLongitude>_<TopLeftLatitude>_<TopLeftLongitude>_<AGL(feet)>"
+
 
 ## Google Colab Repository for local edits:
 
@@ -50,88 +132,6 @@ conda install ipykernel
 1. After installing and registering the kernel, you can switch to it from within your Colab notebook interface by selecting it from the kernel dropdown menu (click on "Runtime" > "Change runtime type" > select your Conda environment).
 2.  Always restart the Colab runtime after setting up a custom kernel or installing packages to ensure the changes take effect. Click on "Runtime" in the menu and select "Restart runtime...".
 </details>
-
-
-## Initiate and activate the environment:
-
-    cd /path/to/skyai-sim
-
-This is optional but highly recommended. You can use any other desired environment and skip this section.
-
-    conda create -n "skyai-sim" python=3.11
-    conda activate skyai-sim
-
-### to enable GPU access (update with your desired version)
-
-check compatibility here: https://www.tensorflow.org/install/source#gpu
-
-    conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1 # Not necessary for this project
-
-### Install other dependencies:
-    pip install tensorflow==2.11
-    pip install -r requirements.txt
-
-## Create a GoogleMap API key:
-**(you can skip this if you are only willing to use the data available in dataset folder)**
-Check how you can create one here: https://developers.google.com/maps/documentation/javascript/get-api-key
-
-Then make a python file in the src folder called: hidden_file.py and add the following line to it:
-
-    api_key='<Your API Key>'
-
-## Access and use the data:
-
-Check notebooks folder.
-
-## Download the Data:
-
-### A single coordinate
-
-    python -m src.download_single
-
-<details>
-  <summary>To specify more features:</summary>
-
-    You can do either:
-
-        python -m src.download_single --coords /path/to/file --aspect_ratio <X> <Y> --fov <degrees> --data_dir /path/to/dataset
-
-    The file should have one line including the following data:
-
-        <latitude> <longitude> <AGL(f)>
-
-    Check dataset/sample_coords.txt as an example.
-
-- Or:
-
-        python -m src.download_single --coords "<Latitude>_<Longitude>_<AGL(feet)>"
-
-for more configuration parameters checkout src/utils/config.py or type:
-
-    python -m src.main --help
-
-- **For example:**
-
-        python -m src.download_single --coords "dataset/sample_coords.txt" --aspect_ratio 4 3 --fov 78.8 --data_dir dataset/
-
-    Note: the aspect ratio and fov are from DJI Mavic and are set to the above values by default.
-
-- Or:
-
-        python -m src.download_single --coords "35.22_-90.07_400"
-
-</details>
-
-### A list of coordinates
-
-    python -m src.download_from_list --coords /path/to/file
-
-### Raster Mission
-    python -m src.download_raster --coords "35.22_-90.07_35.06_-89.73_400"
-
-- **For example:**
-
-      python -m src.download_raster --coords "<TopLeftLatitude>_<TopLeftLongitude>_<TopLeftLatitude>_<TopLeftLongitude>_<AGL(feet)>"
 
 ## License
 
