@@ -61,7 +61,7 @@ class GoogleMap(VBN, ImageData):
         self.log.args = vars(self.args)
 
         # Format current date and time
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
         # Create the new filename with the timestamp
         self.log.filename = f'log_{timestamp}.txt'
