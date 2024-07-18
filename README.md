@@ -7,6 +7,7 @@ Capturing real-world aerial images is challenging due to limited availability an
 - Python 3.6-3.12
 - pip
 - conda (recommended)
+- tested on both windows and linux
 
 ## Initiate and activate the environment:
 
@@ -20,12 +21,17 @@ This is optional but highly recommended. You can use any other desired environme
 ### to enable GPU access (update with your desired version)
 
 check compatibility here: https://www.tensorflow.org/install/source#gpu
+(Not necessary for this project)
 
-    conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1 # Not necessary for this project
+    conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1
 
 ### Install other dependencies:
     pip install tensorflow==2.11
     pip install -r requirements.txt
+
+## Access and use Memphis Agricenter dataset:
+
+Check src/notebooks folder.
 
 ## Create a GoogleMap API key:
 **(you can skip this if you are only willing to use the data available in dataset folder)**
@@ -34,10 +40,6 @@ Check how you can create one here: https://developers.google.com/maps/documentat
 Then make a python file in the src folder called: hidden_file.py and add the following line to it:
 
     api_key='<Your API Key>'
-
-## Access and use the data:
-
-Check notebooks folder.
 
 ## Download the Data:
 
