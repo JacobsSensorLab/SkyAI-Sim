@@ -16,6 +16,7 @@ scipy==1.14.0
 seaborn==0.13.2
 sewar==0.4.5
 requests==2.31.0
+tensorflow==2.11
 tqdm==4.66.1
 urllib3==1.26.16
 utm==0.7.0

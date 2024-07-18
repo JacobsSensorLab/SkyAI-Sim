@@ -4,29 +4,34 @@ Capturing real-world aerial images is challenging due to limited availability an
 
 ## Requirements:
 
-- Python 3.6-3.12
+- Python 3.10
 - pip
 - conda (recommended)
 - tested on both windows and linux
 
 ## Initiate and activate the environment:
 
-    cd /path/to/skyai-sim
-
-This is optional but highly recommended. You can use any other desired environment and skip this section.
+<details>
+  <summary>Setup the environment (Highly recommended)</summary>
 
     conda create -n "skyai-sim" python=3.10
     conda activate skyai-sim
 
-### to enable GPU access (update with your desired version)
+</details>
 
-check compatibility here: https://www.tensorflow.org/install/source#gpu
-(Not necessary for this project)
+
+<details>
+  <summary>Enable GPU access (Not necessary)</summary>
+
+Other versions might be compatible at your own risk. Check compatibility here: https://www.tensorflow.org/install/source#gpu
 
     conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1
 
-### Install other dependencies:
-    pip install tensorflow==2.11
+</details>
+
+
+### Install dependencies:
+
     pip install -r requirements.txt
 
 ## Access and use Memphis Agricenter dataset:
@@ -34,7 +39,7 @@ check compatibility here: https://www.tensorflow.org/install/source#gpu
 Check src/notebooks folder.
 
 ## Create a GoogleMap API key:
-**(you can skip this if you are only willing to use the data available in dataset folder)**
+**This step is for generating your own data.**
 Check how you can create one here: https://developers.google.com/maps/documentation/javascript/get-api-key
 
 Then make a python file in the src folder called: hidden_file.py and add the following line to it:
@@ -85,11 +90,12 @@ for more configuration parameters checkout src/utils/config.py or type:
     python -m src.download_from_list --coords /path/to/file
 
 ### Raster Mission
-    python -m src.download_raster --coords "35.22_-90.07_35.06_-89.73_400"
+    python -m src.download_raster --coords "<TopLeftLatitude>_<TopLeftLongitude>_<TopLeftLatitude>_<TopLeftLongitude>_<AGL(feet)>"
 
 - **For example:**
 
-      python -m src.download_raster --coords "<TopLeftLatitude>_<TopLeftLongitude>_<TopLeftLatitude>_<TopLeftLongitude>_<AGL(feet)>"
+        python -m src.download_raster --coords "35.22_-90.07_35.06_-89.73_400"
+
 
 
 ## Google Colab Repository for local edits:
