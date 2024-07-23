@@ -68,7 +68,8 @@ def init_static_map(coords: Tuple[float, float],
     except ModuleNotFoundError:
         pretty('hidden_file.py is not available.',
                header='Warning!')
-        return
+        api_key = '<API-Key>'
+
     base_url = "https://maps.googleapis.com/maps/api/staticmap"
     params = {
         "center": f"{coords[0]},{coords[1]}",
@@ -78,7 +79,11 @@ def init_static_map(coords: Tuple[float, float],
         "style": "feature:all|element:labels|visibility:off",  # Remove labels
         "key": api_key,
     }
-    response = requests.get(base_url, params=params)
+
+    if api_key == '<API-Key>':
+        return base_url + "?" \
+        + "&".join([f"{key}={value}" for key, value in params.items()])
+    return requests.get(base_url, params=params)
     return response
 
 def calc_bbox_api(

@@ -198,7 +198,11 @@ class GoogleMap(VBN, ImageData):
                 ['x_pixels', 'y_pixels', 'zoom'],
                 im_size + [raster_zoom])
 
-        self.log.map_url = map_response.url
+        try:
+            self.log.map_url = map_response.url
+        except:
+            self.log.map_url = map_response
+            
         pretty('Data detailed values before download:')
         pprint.pp(self.log)
         # Save the log file with the new filename
