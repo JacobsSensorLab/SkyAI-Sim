@@ -202,7 +202,7 @@ class GoogleMap(VBN, ImageData):
             self.log.map_url = map_response.url
         except:
             self.log.map_url = map_response
-            
+
         pretty('Data detailed values before download:')
         pprint.pp(self.log)
         # Save the log file with the new filename
@@ -211,7 +211,7 @@ class GoogleMap(VBN, ImageData):
         with open(self.data_dir / 'logs' / self.log.filename, 'w') as file:
             # Save the namespace to the file
             io_helper.save_namespace(self.log, file)
-
+        print(map_name)
         if map_name not in os.listdir(self.data_dir):
             geo_helper.get_static_map_image(
                 map_response,
