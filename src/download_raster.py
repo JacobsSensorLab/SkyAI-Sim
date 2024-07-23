@@ -32,7 +32,7 @@ def main():
         data_dir=args.data_dir,
         overlap=args.overlap
         )
-    aerial_data.config(download_raster=True)
+    aerial_data.config(download_raster=False)
 
     # To remove data with no available features
     # The threshold will be selected experimentally

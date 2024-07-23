@@ -208,3 +208,12 @@ def save_namespace(namespace, file, prefix=""):
                 save_namespace(value, file, prefix=prefix + attr + '.')
             else:
                 file.write(f"{prefix}{attr} = {value}\n")
+
+def str_to_floats(value):
+    # Try to parse the value as a list of floats
+    try:
+        return [float(x) for x in value.split('_')]
+    except Exception as error:
+        print(error)
+        # If parsing fails, return the value as a string
+        return value

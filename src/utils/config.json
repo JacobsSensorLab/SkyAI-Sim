@@ -1,5 +1,4 @@
 {
-    "coords": "dataset/sample_coords.txt",
     "seed": 2024,
-    "data_dir": "dataset/Test"
+    "data_dir": "dataset/random_samples"
 }

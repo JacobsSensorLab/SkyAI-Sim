@@ -8,7 +8,7 @@ import os
 import argparse
 import json
 
-from src.utils.io_helper import pretty
+from src.utils.io_helper import pretty, str_to_floats
 
 
 def parse_args():
@@ -26,8 +26,8 @@ def parse_args():
     # Define the arguments in a dictionary
     arguments = {
         'coords': {
-            'type': string_or_list_of_floats,
-            'default': "35.22_-90.07_35.06_-89.73_400",
+            'type': str_to_floats,
+            'default': "35.11878_-89.80659_35.06_-89.73_400",
             'help':(
             'Input can be either a file or a formatted string.\n'
             '1. If a string is entered, it should refer to a file with the following format (lat lon agl(feet)):\n'
@@ -128,12 +128,3 @@ def update_args_with_json(json_file):
         pretty("Default file" ,json_file, "not found.",
                header='Warning!')
         return {}
-
-
-def string_or_list_of_floats(value):
-    # Try to parse the value as a list of floats
-    try:
-        return [float(x) for x in value.split('_')]
-    except ValueError:
-        # If parsing fails, return the value as a string
-        return value

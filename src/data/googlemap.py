@@ -93,6 +93,7 @@ class GoogleMap(VBN, ImageData):
         data_folder_name = self.map_type + '_' + str(self.overlap)
         self.data_dir = Path(data_dir) / data_folder_name
 
+        print(self.args)
         img_size = np.round(
                         geo_helper.get_map_dim_m(
                         self.args.fov,
@@ -197,8 +198,6 @@ class GoogleMap(VBN, ImageData):
                 ['x_pixels', 'y_pixels', 'zoom'],
                 im_size + [raster_zoom])
 
-        io_helper.check_folder(self.data_dir / self.data_info['x'])
-
         self.log.map_url = map_response.url
         pretty('Data detailed values before download:')
         pprint.pp(self.log)
@@ -220,7 +219,8 @@ class GoogleMap(VBN, ImageData):
 
     def config(self, download_raster=True):
         """
-        Downloads the data, configures, then do the geolocation calculations.
+        Downloads the rastert data, configures, then do the geolocation calculations.
+        Only used for raster mission.
         Parameters:
             - self (object): The object being passed in.
         Returns:
@@ -233,6 +233,8 @@ class GoogleMap(VBN, ImageData):
         """
 
         self.check_data()
+
+        io_helper.check_folder(log_dir=self.data_dir / self.data_info['x'])
         self.input_dir = io_helper.find_files(self.data_dir /
                                                  self.data_info['x'],
                                                  'jpg')
@@ -243,13 +245,13 @@ class GoogleMap(VBN, ImageData):
             tl, br = geo_helper.meters2geo(
                 center=self.args.coords[:2],
                 img_size=[self.log.single_img_size.x_m,
-                          self.log.single_img_size.y_m])
+                          self.log.single_img_size.y_m],
+            epsg=self.args.utm)
             raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
             self.assign_log('single_img_size',
                 ['x_pixels', 'y_pixels', 'zoom'],
                 im_size + [raster_zoom])
 
-            io_helper.check_folder(self.data_dir / self.data_info['x'])
             self.complete_download()
 
         self.input_dir = io_helper.find_files(self.data_dir /
@@ -296,6 +298,7 @@ class GoogleMap(VBN, ImageData):
                 meta_data,
                 columns=['img_names', 'columns', 'row', 'Lat', 'Lon', 'Alt']
             )
+
             self.meta_df['entropies'] = self.meta_df.apply(
                 self.calc_entropy(self.data_dir / self.data_info['x']), axis=1
             )
@@ -348,8 +351,11 @@ class GoogleMap(VBN, ImageData):
         # of the top most left image in the raster mission
         im_size = np.asanyarray(self.log.single_img_size.x_m,
                                         self.log.single_img_size.y_m)
-
-        tl, br = geo_helper.meters2geo(center=top_left_coords, img_size=im_size)
+        print(im_size)
+        tl, br = geo_helper.meters2geo(
+            center=top_left_coords,
+            img_size=im_size,
+            epsg=self.args.utm)
         # raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
 
         raster_zoom = self.log.single_img_size.zoom

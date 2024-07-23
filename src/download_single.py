@@ -32,16 +32,19 @@ def main():
 
     # if coords argument was given as a file instead of the actual coordinates:
     try:
-        args.coords = np.asanyarray(pd.read_csv(args.coords, dtype=float, sep=' '))[1]
-    except ValueError:
+        args.coords = np.asanyarray(pd.read_csv(args.coords, dtype=float, sep=' '))[0]
+    except:
         pass
 
+    print(args.coords)
     bbox_m = geo_helper.get_map_dim_m(
         args.fov, args.coords[-1],
         args.aspect_ratio[0]/args.aspect_ratio[1]
         )
+    print(1, args.coords)
     bbox = geo_helper.calc_bbox_m(args.coords[:2],
                                   bbox_m)
+    print(2)
     args.coords = tuple(np.array(bbox).flatten()) + (args.coords[-1],)
     aerial_data = GoogleMap(
         args=args,

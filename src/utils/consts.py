@@ -7,13 +7,16 @@ import math
 from pathlib import Path
 from turtle import update
 from src.utils.config import parse_args
+from src.utils.io_helper import str_to_floats
 
 
 try:
-    ARGS = parse_args().parse_args()
+    args = parse_args().parse_args()
 except:
     # To be able to run in google colab
-    ARGS = parse_args().parse_args(args=[])
+    args = parse_args().parse_args(args=[])
+args.coords = str_to_floats(args.coords)
+ARGS = args
 
 # the path corresponding to current file directory
 THIS_DIR = Path(__file__).__str__()
