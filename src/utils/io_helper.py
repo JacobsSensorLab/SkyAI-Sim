@@ -214,6 +214,6 @@ def str_to_floats(value):
     try:
         return [float(x) for x in value.split('_')]
     except Exception as error:
-        print(error)
+        # print(error)
         # If parsing fails, return the value as a string
         return value

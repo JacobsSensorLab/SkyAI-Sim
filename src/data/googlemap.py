@@ -188,16 +188,6 @@ class GoogleMap(VBN, ImageData):
             map_size
         )
 
-        tl, br = geo_helper.meters2geo(
-            center=self.args.coords[:2],
-            img_size=[self.log.single_img_size.x_m,
-                      self.log.single_img_size.y_m],
-            epsg=self.args.utm)
-        raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
-        self.assign_log('single_img_size',
-                ['x_pixels', 'y_pixels', 'zoom'],
-                im_size + [raster_zoom])
-
         try:
             self.log.map_url = map_response.url
         except:
@@ -353,9 +343,8 @@ class GoogleMap(VBN, ImageData):
         ## Start Raster from TL of the map
         # get coordinates of the corners
         # of the top most left image in the raster mission
-        im_size = np.asanyarray(self.log.single_img_size.x_m,
-                                        self.log.single_img_size.y_m)
-        print(im_size)
+        im_size = np.asanyarray([self.log.single_img_size.x_pixels,
+                                        self.log.single_img_size.y_pixels])
         tl, br = geo_helper.meters2geo(
             center=top_left_coords,
             img_size=im_size,
@@ -369,8 +358,8 @@ class GoogleMap(VBN, ImageData):
         x_orig = tlm[0]
 
         # Width of each raster image along x, y in meters
-        raster_wy = np.abs(tlm[1] - brm[1])
-        raster_wx = np.abs(tlm[0] - brm[0])
+        raster_wy = self.log.single_img_size.y_m
+        raster_wx = self.log.single_img_size.x_m
 
         ## Add vertical margins
         # so that the google mark can be removed later after download
@@ -379,6 +368,7 @@ class GoogleMap(VBN, ImageData):
 
         # Calculate number of images fit in the map in a raster mission
         map_size_m = np.abs(np.subtract(map_tlm[:2], map_brm[:2]))
+        map_size_m = self.log.map_size.x_m, self.log.map_size.y_m
         n_images_x = 1 + int((map_size_m[0] - raster_wx)\
                     /(((100 - overlap) / 100) * raster_wx))
         n_images_y = 1 + int((map_size_m[1] - raster_wy)\
