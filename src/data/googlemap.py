@@ -166,8 +166,7 @@ class GoogleMap(VBN, ImageData):
 
         for attr in ['x', 'y']:
              setattr(self.log.n_raster_imgs, attr,
-                     int((getattr(self.log.map_size, attr + '_m') \
-                         - getattr(self.log.single_img_size, attr + '_m')) /\
+                     int((getattr(self.log.map_size, attr + '_m')) /\
                          (getattr(self.log.single_img_size, attr + '_m') * (1 - self.overlap))) + 1
                      )
 
@@ -233,19 +232,6 @@ class GoogleMap(VBN, ImageData):
                                                  self.data_info['x'],
                                                  'jpg')
         if download_raster:
-            ## Start Raster from TL of the map
-            # get coordinates of the corners
-            # of the top most left image in the raster mission
-            tl, br = geo_helper.meters2geo(
-                center=self.args.coords[:2],
-                img_size=[self.log.single_img_size.x_m,
-                          self.log.single_img_size.y_m],
-            epsg=self.args.utm)
-            raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
-            self.assign_log('single_img_size',
-                ['x_pixels', 'y_pixels', 'zoom'],
-                im_size + [raster_zoom])
-
             self.complete_download()
 
         self.input_dir = io_helper.find_files(self.data_dir /
@@ -333,29 +319,22 @@ class GoogleMap(VBN, ImageData):
         Example:
             - gen_raster_from_map((34.052235, -118.243683), (34.040713, -118.246769))
         """
-        ## Convert geolocation of the raster corners to utm
-        # TL point
-        map_tlm = geo_helper.geo2utm(top_left_coords[0], top_left_coords[1], self.args.utm)
-
-        # TL point
-        map_brm = geo_helper.geo2utm(bottom_right_coords[0], bottom_right_coords[1], self.args.utm)
-
         ## Start Raster from TL of the map
         # get coordinates of the corners
         # of the top most left image in the raster mission
-        im_size = np.asanyarray([self.log.single_img_size.x_pixels,
-                                        self.log.single_img_size.y_pixels])
         tl, br = geo_helper.meters2geo(
-            center=top_left_coords,
-            img_size=im_size,
-            epsg=self.args.utm)
-        # raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
+            center=self.args.coords[:2],
+            img_size=[self.log.single_img_size.x_m,
+                        self.log.single_img_size.y_m],
+        epsg=self.args.utm)
+        raster_zoom, im_size = geo_helper.get_zoom_from_bounds(tl, br)
+        self.assign_log('single_img_size',
+            ['x_pixels', 'y_pixels', 'zoom'],
+            im_size + [raster_zoom])
 
-        raster_zoom = self.log.single_img_size.zoom
         # Convert coordinates to UTM
         tlm = geo_helper.geo2utm(tl[0], tl[1], self.args.utm)
         brm = geo_helper.geo2utm(br[0], br[1], self.args.utm)
-        x_orig = tlm[0]
 
         # Width of each raster image along x, y in meters
         raster_wy = self.log.single_img_size.y_m
@@ -366,47 +345,46 @@ class GoogleMap(VBN, ImageData):
         # the same margin value has to be applied to the preprocess_image method
         im_size[1] += int(im_size[1] * self.args.vmargin/100)
 
-        # Calculate number of images fit in the map in a raster mission
-        map_size_m = np.abs(np.subtract(map_tlm[:2], map_brm[:2]))
-        map_size_m = self.log.map_size.x_m, self.log.map_size.y_m
-        n_images_x = 1 + int((map_size_m[0] - raster_wx)\
-                    /(((100 - overlap) / 100) * raster_wx))
-        n_images_y = 1 + int((map_size_m[1] - raster_wy)\
-                    /(((100 - overlap) / 100) * raster_wy))
+        n_images_x = self.log.n_raster_imgs.x
+        n_images_y = self.log.n_raster_imgs.y
+
+        x_left = tlm[0]
+        x_right = tlm[0] + n_images_x * raster_wx
+        print(x_left, x_right)
 
         # Calculate what has already been downloaded and what is left
         if last_img_name != -1:
             # Extract coordinates and IDs from file name and convert to UTM
-            last_x, last_y, lat_i, lon_j, _ = last_img_name[:-4].split('_')
-            last_x, last_y = int(last_x), int(last_y)
-            lat_i, lon_j = float(lat_i), float(lon_j)
-            x, y = geo_helper.geo2utm(lat_i, lon_j, self.args.utm)
+            i_last, j_last, phi, lamda, _ = last_img_name[:-4].split('_')
+            i_last, j_last = int(i_last), int(j_last)
+            phi, lamda = float(phi), float(lamda)
+            x, y = geo_helper.geo2utm(phi, lamda, self.args.utm)
 
             # last x and y start from 0
-            if [last_x + 1, last_y + 1] == [n_images_x, n_images_y]:
+            if [i_last + 1, j_last + 1] == [n_images_x, n_images_y]:
                 pretty('All data already downloaded.', log=self)
                 return
 
             pretty('Downloading the rest of Google Map images from \nx = ',
-                   last_x + 1, ' / ', n_images_x,
-                   '\ny = ', last_y + 1, ' / ', n_images_y, log=self)
+                   i_last + 1, ' / ', n_images_x,
+                   '\ny = ', j_last + 1, ' / ', n_images_y, log=self)
             # Determine the UTM coordinates and ID of the nex image to download
-            if last_x < n_images_x - 1:
-                last_x += 1
+            if i_last < n_images_x - 1:
+                i_last += 1
                 x += raster_wx * (100 - overlap) / 100
             else:
-                last_x = 0
-                last_y += 1
+                i_last = 0
+                j_last += 1
                 y -= raster_wy * (100 - overlap) / 100
-                x = x_orig
-            lat_i, lon_j = geo_helper.utm2geo(x, y, self.args.utm)
+                x = x_left
+            phi, lamda = geo_helper.utm2geo(x, y, self.args.utm)
         else:
             pretty('Downloading All Google Map images...', log=self)
-            last_x, last_y = 0, 0
-            lat_i, lon_j = top_left_coords
+            i_last, j_last = 0, 0
+            phi, lamda = top_left_coords
             x, y = tlm
 
-        i, j = last_x, last_y
+        i, j = i_last, j_last
 
         if n_images_x * n_images_y > 5000:
             pretty('Number of images exceed the publishable limit. Read more at:',
@@ -420,27 +398,27 @@ class GoogleMap(VBN, ImageData):
         if response in ["y", "yes"]:
             print("Confirmed.")
             with tqdm(position=0, leave=True, total=n_images_x*n_images_y) as pbar:
-                pbar.update((n_images_x*last_y) + last_x)
-                for j in range(last_y, n_images_y):
-                    i = last_x if j == last_y else 0
+                pbar.update((n_images_x*j_last) + i_last)
+                for j in range(j_last, n_images_y):
+                    i = i_last if j == j_last else 0
                     while i < n_images_x:
-                        if lat_i < bottom_right_coords[0] - 0.02 or lon_j > bottom_right_coords[1] + 0.02:
+                        if phi < bottom_right_coords[0] - 0.02 or lamda > bottom_right_coords[1] + 0.02:
                             raise OutOfBounds(
                                 "Exceeding BR Coordinate limits; BR coordinates:",
                                 bottom_right_coords,
-                                'Current coordinates:', lat_i, lon_j,
+                                'Current coordinates:', phi, lamda,
                                 'Indices:', i, j
                             )
 
                         out_name = str(i) + '_' \
                                 + str(j) + '_' \
-                                + str(lat_i) \
-                                + '_' + str(lon_j) \
+                                + str(phi) \
+                                + '_' + str(lamda) \
                                 + '_' + str(raster_zoom) + '.jpg'
 
                         output_dir = self.data_dir / self.data_info['x'] / out_name
                         img_response = geo_helper.init_static_map(
-                            [lat_i, lon_j],
+                            [phi, lamda],
                             map_type=self.map_type,
                             zoom=raster_zoom,
                             size=im_size
@@ -450,13 +428,13 @@ class GoogleMap(VBN, ImageData):
                             output_dir
                             )
                         x += raster_wx * (100 - overlap) / 100
-                        _, lon_j = geo_helper.utm2geo(x, y, self.args.utm)
+                        _, lamda = geo_helper.utm2geo(x, y, self.args.utm)
 
                         pbar.update()
                         i += 1
                     y -= raster_wy * (100 - overlap) / 100
-                    x = x_orig
-                    lat_i, lon_j = geo_helper.utm2geo(x, y, self.args.utm)
+                    x = x_left
+                    phi, lamda = geo_helper.utm2geo(x, y, self.args.utm)
         else:
             pretty("Not Proceeding the download. Continuing without the download...",
                    log=self)
@@ -541,7 +519,7 @@ class GoogleMap(VBN, ImageData):
             Read Tensorflow image
         '''
         image_string = tf.io.read_file(str(img_path))
-        image = tf.image.decode_jpeg(image_string, channels=3)
+        image = tf.image.decode_jpeg(image_string, channels=self.input_dim[-1])
         image = tf.image.convert_image_dtype(image, tf.uint8)
 
         return image

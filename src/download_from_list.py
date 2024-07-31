@@ -46,7 +46,7 @@ def main():
         args.coords = tuple(np.array(bbox).flatten()) + (coords[-1],)
         aerial_data = GoogleMap(
         args=args,
-        map_type='satellite',
+        map_type=args.map_type,
         data_dir=args.data_dir,
         overlap=args.overlap
         )

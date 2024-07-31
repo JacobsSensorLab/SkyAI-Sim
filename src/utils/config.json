@@ -1,5 +1,5 @@
 {
     "seed": 2024,
-    "data_dir": "dataset/Memphis/",
-    "coords":"35.16_-89.90_35.115_-89.823_400"
+    "data_dir": "dataset/Memphis_single_sample/",
+    "coords":"35.16_-89.90_35.115_-89.823_120"
 }

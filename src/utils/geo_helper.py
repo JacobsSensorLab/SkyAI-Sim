@@ -454,8 +454,8 @@ def calc_bbox_m(center_coords, bbox_m):
 
     return (top_left.latitude, top_left.longitude), (bottom_right.latitude, bottom_right.longitude)
 
-def get_map_dim_m(fov_d, agl_f, aspect_ratio):
-    agl_m = agl_f * 0.3048 # convert feet to meters
+def get_map_dim_m(fov_d, agl_m, aspect_ratio):
+    # agl_m = agl_f * 0.3048 # convert feet to meters
     # Calculate diagonal in meters in image using fov and ar
     d_m = 2 * agl_m * np.tan(np.radians(fov_d/2))
 

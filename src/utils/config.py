@@ -50,15 +50,16 @@ def parse_args():
             'default': [4, 3],
             'help': 'Aspect ratio dimensions.'
         },
-        'overlap': {
-            'type': float,
-            'default': 0,
-            'help': 'Overlap of the camera field of view.'
-        },
         'utm': {
             'type': str,
             'default': 'EPSG:32616',
-            'help': 'UTM including zone information in EPSG format.'
+            'help': 'Specify the aspect ratio dimensions (width and height) for the output, e.g., 4 3 for a 4:3 ratio.'
+            },
+        'map_type':{
+            'type':str,
+            'default': 'satellite',
+            'help': 'Map Type from static map API',
+            'choices': ['satellite', 'roadmap', 'terrain']
         },
         'data_dir': {
             'type': str,
@@ -67,7 +68,7 @@ def parse_args():
         },
         'vmargin':{
             'type': int,
-            'default': 0,
+            'default': 20,
             'help': ('Vertical margin to capture an image with a size bigger than the inteded dimension,'
                     'So that the Google sign and additional unwanted text can be removed later for post processing.'
                     '(You cannot publish your data withouth those texts.)\n'
@@ -78,6 +79,11 @@ def parse_args():
             'type': int, 'nargs': '+',
             'default': [400, 400, 3],
             'help': 'The desired image size to resize to after loading the original image.'
+        },
+        'overlap': {
+            'type': float,
+            'default': 0,
+            'help': 'Overlap of the camera field of view.'
         },
         'batch_size': {
             'type': int,

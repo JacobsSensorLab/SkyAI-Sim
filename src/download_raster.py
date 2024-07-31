@@ -28,7 +28,7 @@ def main():
     args = consts.ARGS
     aerial_data = GoogleMap(
         args=args,
-        map_type='satellite',
+        map_type=args.map_type,
         data_dir=args.data_dir,
         overlap=args.overlap
         )
