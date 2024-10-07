@@ -63,9 +63,9 @@ def parse_args():
         },
         'dataset':{
             'type': str,
-            'default': 'GoogleMap',
+            'default': 'SkyAI',
             'help': 'Specify the name of the datset.',
-            'choices': ['GoogleMap', 'VBN']
+            'choices': ['SkyAI', 'VBN']
         },
         'data_dir': {
             'type': str,

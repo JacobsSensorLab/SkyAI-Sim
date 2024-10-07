@@ -26,7 +26,7 @@ from src.data.vbn import VBN
 from src.data.imagedata import ImageData
 
 
-class GoogleMap(VBN, ImageData):
+class SkyAI(VBN, ImageData):
     """
         Load Googlemap API data
     """
@@ -120,7 +120,7 @@ class GoogleMap(VBN, ImageData):
 
     def check_data(self):
         """
-            Generate GoogleMap data from a given big picture map
+            Generate SkyAI data from a given big picture map
             These calculations are theoretical measurements,
             based on TL and BR coordinates of the map,
             slightly different than the area captured by images in geo_helper.geo_calcs

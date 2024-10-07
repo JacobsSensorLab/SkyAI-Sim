@@ -6,27 +6,27 @@
     date: June 2024, JacobsSensorLab
 """
 from src.utils import consts
-from src.data.googlemap import GoogleMap
+from src.data.skyai import SkyAI
 
 
 def main():
     """Function:
-        Generates a GoogleMap object with specified parameters.
+        Generates a SkyAI object with specified parameters.
     Parameters:
-        - args (list): List of arguments for the GoogleMap object.
+        - args (list): List of arguments for the SkyAI object.
         - map_type (str): Type of map to be generated (default: 'satellite').
         - data_dir (str): Directory to store the generated map data (default: current directory).
         - overlap (int): Amount of overlap between adjacent map tiles (default: 0).
     Returns:
-        - aerial_data (GoogleMap): GoogleMap object with specified parameters.
+        - aerial_data (SkyAI): SkyAI object with specified parameters.
     Processing Logic:
-        - Generate GoogleMap object.
+        - Generate SkyAI object.
         - Set map type to 'satellite' if not specified.
         - Set data directory to current directory if not specified.
         - Set overlap to 0 if not specified.
     """
     args = consts.ARGS
-    aerial_data = GoogleMap(
+    aerial_data = SkyAI(
         args=args,
         map_type=args.map_type,
         data_dir=args.data_dir,
