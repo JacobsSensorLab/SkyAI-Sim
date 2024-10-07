@@ -350,7 +350,6 @@ class GoogleMap(VBN, ImageData):
 
         x_left = tlm[0]
         x_right = tlm[0] + n_images_x * raster_wx
-        print(x_left, x_right)
 
         # Calculate what has already been downloaded and what is left
         if last_img_name != -1:
@@ -402,7 +401,8 @@ class GoogleMap(VBN, ImageData):
                 for j in range(j_last, n_images_y):
                     i = i_last if j == j_last else 0
                     while i < n_images_x:
-                        if phi < bottom_right_coords[0] - 0.02 or lamda > bottom_right_coords[1] + 0.02:
+                        if phi < bottom_right_coords[0] - raster_wx - 0.02 or\
+                            lamda > bottom_right_coords[1] + raster_wy + 0.02:
                             raise OutOfBounds(
                                 "Exceeding BR Coordinate limits; BR coordinates:",
                                 bottom_right_coords,

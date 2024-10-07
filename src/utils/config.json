@@ -1,5 +1,6 @@
 {
     "seed": 2024,
-    "data_dir": "dataset/Memphis_single_sample/",
-    "coords":"35.16_-89.90_35.115_-89.823_120"
+    "data_dir": "/home/sdjkhosh/Datasets/Memphis/",
+    "coords":"35.19_-89.94_35.11_-89.8_120",
+    "overlap": 0
 }

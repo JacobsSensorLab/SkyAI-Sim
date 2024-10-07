@@ -61,6 +61,12 @@ def parse_args():
             'help': 'Map Type from static map API',
             'choices': ['satellite', 'roadmap', 'terrain']
         },
+        'dataset':{
+            'type': str,
+            'default': 'GoogleMap',
+            'help': 'Specify the name of the datset.',
+            'choices': ['GoogleMap', 'VBN']
+        },
         'data_dir': {
             'type': str,
             'default': 'dataset/Memphis/',
@@ -83,7 +89,7 @@ def parse_args():
         'overlap': {
             'type': float,
             'default': 0,
-            'help': 'Overlap of the camera field of view.'
+            'help': 'Overlap of the camera field of view as a probability value between 0 to 1.'
         },
         'batch_size': {
             'type': int,
