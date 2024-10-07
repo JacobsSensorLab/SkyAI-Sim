@@ -166,8 +166,10 @@ class SkyAI(VBN, ImageData):
 
         for attr in ['x', 'y']:
              setattr(self.log.n_raster_imgs, attr,
-                     int((getattr(self.log.map_size, attr + '_m')) /\
-                         (getattr(self.log.single_img_size, attr + '_m') * (1 - self.overlap))) + 1
+                     int(
+                         (getattr(self.log.map_size, attr + '_m')) /\
+                         (getattr(self.log.single_img_size, attr + '_m') * (1 - self.overlap))
+                         )
                      )
 
         self.log.n_raster_imgs.total = \
