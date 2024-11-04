@@ -34,8 +34,7 @@ def main():
     coords_list = np.asanyarray(pd.read_csv(args.coords,
                                             dtype=float, sep=' '))
 
-
-    for i, coords in enumerate(coords_list[-5:]):
+    for i, coords in enumerate(coords_list):
         io_helper.pretty(coords, header = 'Coordinate ' + str(i + 1))
         bbox_m = geo_helper.get_map_dim_m(
                 args.fov, coords[-1],

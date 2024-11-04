@@ -35,11 +35,11 @@ class SkyAI(VBN, ImageData):
             def __init__(self, **kwargs):
                 Initializes a Googlemap object.
                 Parameters:
-                    - kwargs (dict): A dictionary of keyword arguments.
-                        - args: args from parsearg or config.json file
-                        - data_dir: data directory string (withouth overlap and )
-                        - map_type: choices between 'roadmap', 'satellite', 'terrain', etc.
-                        - overlap: int ranges from 0 to 99
+                    - kwargs (dict): A dictionary of keyword arguments. including:
+                    - args: args from parsearg or config.json file
+                    - data_dir: data directory string (withouth overlap and )
+                    - map_type: choices between 'roadmap', 'satellite', 'terrain', etc.
+                    - overlap: int ranges from 0 to 99
                 Returns:
                     - None.
                 Processing Logic:
